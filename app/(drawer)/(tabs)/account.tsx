@@ -18,15 +18,8 @@ export default function Profile() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={28} color="black" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Account</Text>
-        <View style={{ width: 30 }} />
-      </View>
-
+      {/* Remove the custom header - the Tabs header will show */}
+      
       {/* Profile */}
       <View style={styles.profileSection}>
         <Image
@@ -54,10 +47,10 @@ export default function Profile() {
             onPress={() => {
               if (option === "General") router.push("/general");
               else if (option === "Notifications")
-                router.push("/(drawer)/(tabs)/home/notification");
+                router.push("../../notification_setting");
               else if (option === "Payment") router.push("/payment");
               else if (option === "Order History")
-                router.push("../../../orders");
+                router.push("/orders");
               else if (option === "Track Order")
                 router.push("../../../order_tracking/12345"); 
                 // 👆 replace 12345 with actual orderId dynamically
@@ -84,15 +77,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     padding: 16,
-    paddingTop: 40,
+    paddingTop: 16, // Changed from 40
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 30,
-  },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
+  // Remove header styles - they're not needed anymore
   profileSection: {
     flexDirection: "row",
     alignItems: "center",

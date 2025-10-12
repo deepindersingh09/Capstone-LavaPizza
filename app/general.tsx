@@ -11,13 +11,12 @@ export default function General() {
     <View style={styles.container}>
       {/* Header */} 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={28} color="black"/>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.replace('/(drawer)/(tabs)/account')}>
+  <Ionicons name="arrow-back" size={28} color="black"/>
+</TouchableOpacity>
 
         <Text style={styles.headerTitle}>General</Text>
         <View style={{ width: 30 }} />
-        {/* keeps title centered */}
       </View>
 
       {/* Dark Mode Section */}
@@ -31,7 +30,11 @@ export default function General() {
             onPress={() => setDarkMode(option)}
           >
             <Text style={styles.optionText}>{option}</Text>
-            <MaterialIcons name={darkMode === option ? "radio-button-checked" : "radio-button-unchecked"} size={22} color="black"/>
+            <MaterialIcons 
+              name={darkMode === option ? "radio-button-checked" : "radio-button-unchecked"} 
+              size={22} 
+              color="black"
+            />
           </TouchableOpacity>
         ))}
       </View>
@@ -40,7 +43,20 @@ export default function General() {
       <View style={styles.card}>
         {["About", "Rewards Terms", "Delete Account", "Privacy Policy"].map(
           (item, index) => (
-            <TouchableOpacity key={index} style={styles.optionRow}>
+            <TouchableOpacity 
+              key={index} 
+              style={styles.optionRow}
+              onPress={() => {
+                if (item === "About") {
+                  router.push("/about");
+                } else if (item === "Privacy Policy") {
+                  router.push("/policy/privacy");
+                } else if (item === "Delete Account") {
+                  // Handle delete account
+                }
+                // Add other handlers as needed
+              }}
+            >
               <Text
                 style={[
                   styles.optionText,
@@ -64,33 +80,24 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 40,
   },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 30,
   },
-
-  backArrow: {
-    fontSize: 26,
-  },
-
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
   },
-
   section: {
     marginBottom: 20,
   },
-
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 10,
   },
-
   card: {
     backgroundColor: "#f7f6f6ff",
     borderRadius: 8,
@@ -102,7 +109,6 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     marginTop: 20,
   },
-
   optionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -111,13 +117,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#ddd",
   },
-
   optionText: {
     fontSize: 16,
-  },
-
-  arrow: {
-    fontSize: 18,
-    color: "gray",
   },
 });
