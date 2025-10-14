@@ -1,6 +1,6 @@
 // components/CustomDrawer.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { DrawerContentScrollView, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -135,19 +135,12 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
 
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={styles.container}>
-      {/* Profile Section */}
+      {/* Profile Section - NO IMAGE, JUST TEXT */}
       <View style={styles.profileSection}>
-        <Image
-          source={require('../assets/images/profile_picture.png')}
-          style={styles.profileImage}
-        />
-        <View style={styles.profileInfo}>
-          <Text style={styles.greeting}>
-            {isGuest ? 'Welcome,' : 'Hi,'}
-          </Text>
-          {/* ✅ Display dynamic user name */}
-          <Text style={styles.userName}>{userName}!</Text>
-        </View>
+        <Text style={styles.greeting}>
+          {isGuest ? 'Welcome,' : 'Hi,'}
+        </Text>
+        <Text style={styles.userName}>{userName}!</Text>
       </View>
 
       {/* Menu Items */}
@@ -187,22 +180,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 20,
     paddingTop: 50,
     backgroundColor: '#FFF8E1',
     borderBottomWidth: 1,
     borderBottomColor: '#FFE082',
-  },
-  profileImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 15,
-  },
-  profileInfo: {
-    flex: 1,
   },
   greeting: {
     fontSize: 14,
