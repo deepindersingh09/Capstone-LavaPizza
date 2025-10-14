@@ -31,18 +31,26 @@ export default function Signup() {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
 
-      // ✅ Store user's first name in Firebase profile
       await updateProfile(cred.user, {
         displayName: firstName.trim(),
       });
 
-      // ✅ Also store full name locally for easy access
+      const userData = {
+        uid: cred.user.uid,
+        firstName: firstName.trim(),
+        lastName: lastName.trim() || '',
+        email: email.trim(),
+        createdAt: new Date().toISOString(),
+      };
+
+      await AsyncStorage.setItem(`@user_${cred.user.uid}`, JSON.stringify(userData));
       await AsyncStorage.setItem('@user_first_name', firstName.trim());
       if (lastName) {
         await AsyncStorage.setItem('@user_last_name', lastName.trim());
       }
 
-      // Send verification email and sign out
+      console.log('✅ User data saved locally:', userData);
+
       await sendEmailVerification(cred.user);
       await signOut(auth);
 
@@ -53,7 +61,18 @@ export default function Signup() {
       await AsyncStorage.removeItem('@order_mode');
       router.replace('/auth/login');
     } catch (e: any) {
-      Alert.alert('Sign up failed', e.message);
+      let errorMessage = 'Unable to create account';
+      
+      if (e.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already registered. Please sign in instead.';
+      } else if (e.code === 'auth/invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (e.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Please use a stronger password.';
+      }
+      
+      Alert.alert('Sign up failed', errorMessage);
+      console.error('Signup error:', e);
     } finally {
       setBusy(false);
     }
@@ -64,7 +83,6 @@ export default function Signup() {
       <Text style={styles.title}>Create Account</Text>
       <Text style={styles.subtitle}>Get started now!</Text>
 
-      {/* ✅ Added First Name field */}
       <TextInput
         placeholder="First Name *"
         autoCapitalize="words"
@@ -73,7 +91,6 @@ export default function Signup() {
         style={styles.input}
       />
 
-      {/* ✅ Added Last Name field (optional) */}
       <TextInput
         placeholder="Last Name (optional)"
         autoCapitalize="words"

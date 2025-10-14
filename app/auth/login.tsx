@@ -1,11 +1,10 @@
-// app/auth/login.tsx - WITH DEBUG LOGGING
+// app/auth/login.tsx - FIXED GUEST MODE
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { signInWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../../lib/firebase';
-import { getUserFromFirestore } from '../../lib/firestore-helper';
 
 export default function Login() {
   const router = useRouter();
@@ -22,11 +21,9 @@ export default function Login() {
     try {
       console.log('🔐 Attempting login for:', email);
       
-      // Sign in with Firebase Auth
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       console.log('✅ Firebase Auth successful, User ID:', cred.user.uid);
 
-      // Check if email is verified
       if (!cred.user.emailVerified) {
         console.log('⚠️ Email not verified');
         await sendEmailVerification(cred.user);
@@ -38,59 +35,53 @@ export default function Login() {
         return;
       }
 
-      console.log('📧 Email verified, fetching user data from Firestore...');
+      console.log('📧 Email verified, fetching user data...');
 
-      // ✅ Fetch user data from Firestore
-      const userData = await getUserFromFirestore(cred.user.uid);
-      console.log('📦 Firestore data:', userData);
-
-      if (userData && userData.firstName) {
-        // Store user's first name locally
-        await AsyncStorage.setItem('@user_first_name', userData.firstName);
-        console.log('✅ Saved first name to AsyncStorage:', userData.firstName);
+      const userDataString = await AsyncStorage.getItem(`@user_${cred.user.uid}`);
+      
+      if (userDataString) {
+        const userData = JSON.parse(userDataString);
+        console.log('✅ User data found in AsyncStorage:', userData);
         
+        await AsyncStorage.setItem('@user_first_name', userData.firstName);
         if (userData.lastName) {
           await AsyncStorage.setItem('@user_last_name', userData.lastName);
-          console.log('✅ Saved last name to AsyncStorage:', userData.lastName);
         }
-
-        // Clear guest mode
+        
+        console.log('✅ Name saved:', userData.firstName);
         await AsyncStorage.removeItem('@guest_mode');
-        console.log('✅ Cleared guest mode');
-
+        
         Alert.alert('Welcome back!', `Hi ${userData.firstName}! 🍕`);
       } else {
-        console.log('⚠️ No Firestore data found, checking Auth profile...');
+        console.log('⚠️ No local data found, checking Auth profile...');
         
-        // Fallback: try to get name from Firebase Auth profile
         if (cred.user.displayName) {
           await AsyncStorage.setItem('@user_first_name', cred.user.displayName);
           await AsyncStorage.removeItem('@guest_mode');
-          console.log('✅ Saved name from Auth profile:', cred.user.displayName);
+          console.log('✅ Using name from Auth profile:', cred.user.displayName);
           Alert.alert('Welcome back!', `Hi ${cred.user.displayName}! 🍕`);
         } else {
-          console.log('❌ No name found anywhere!');
-          Alert.alert('Notice', 'Please update your profile with your name.');
+          console.log('❌ No name found, setting default...');
+          const firstName = email.split('@')[0];
+          await AsyncStorage.setItem('@user_first_name', firstName);
+          await AsyncStorage.removeItem('@guest_mode');
+          Alert.alert('Welcome!', `Hi ${firstName}! Update your profile to change your name.`);
         }
       }
 
-      // Clear any existing order mode
       await AsyncStorage.removeItem('@order_mode');
       
-      // Verify what's in storage
       const storedName = await AsyncStorage.getItem('@user_first_name');
       const guestMode = await AsyncStorage.getItem('@guest_mode');
-      console.log('🔍 Final check - Stored name:', storedName);
-      console.log('🔍 Final check - Guest mode:', guestMode);
+      console.log('🔍 Stored name:', storedName);
+      console.log('🔍 Guest mode:', guestMode);
       
-      // Navigate to start page
       console.log('🚀 Navigating to /start');
       router.replace('/start');
     } catch (e: any) {
       console.error('❌ Login error:', e);
       let errorMessage = 'Unable to sign in';
       
-      // Handle common Firebase errors
       if (e.code === 'auth/user-not-found') {
         errorMessage = 'No account found with this email. Please sign up first.';
       } else if (e.code === 'auth/wrong-password') {
@@ -101,6 +92,8 @@ export default function Login() {
         errorMessage = 'This account has been disabled. Contact support.';
       } else if (e.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later.';
+      } else if (e.code === 'auth/invalid-credential') {
+        errorMessage = 'Invalid credentials. Please check your email and password.';
       }
       
       Alert.alert('Sign in failed', errorMessage);
@@ -110,14 +103,29 @@ export default function Login() {
   };
 
   const handleGuest = async () => {
-    console.log('👤 Continuing as guest');
-    await AsyncStorage.removeItem('@order_mode');
-    await AsyncStorage.setItem('@guest_mode', '1');
-    // Clear user name for guest mode
-    await AsyncStorage.removeItem('@user_first_name');
-    await AsyncStorage.removeItem('@user_last_name');
-    console.log('✅ Guest mode set');
-    router.replace('/start');
+    try {
+      console.log('👤 Continuing as guest...');
+      
+      // Clear any existing user data
+      await AsyncStorage.removeItem('@order_mode');
+      await AsyncStorage.removeItem('@user_first_name');
+      await AsyncStorage.removeItem('@user_last_name');
+      
+      // Set guest mode flag
+      await AsyncStorage.setItem('@guest_mode', '1');
+      
+      console.log('✅ Guest mode activated');
+      
+      // Verify it was set
+      const guestCheck = await AsyncStorage.getItem('@guest_mode');
+      console.log('🔍 Guest mode verification:', guestCheck);
+      
+      // Navigate to start
+      router.replace('/start');
+    } catch (error) {
+      console.error('❌ Error setting guest mode:', error);
+      Alert.alert('Error', 'Failed to continue as guest. Please try again.');
+    }
   };
 
   return (
@@ -153,7 +161,7 @@ export default function Login() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={handleGuest} style={styles.guestBtn}>
+      <TouchableOpacity onPress={handleGuest} style={styles.guestBtn} disabled={busy}>
         <Text style={styles.guestText}>Continue as guest</Text>
       </TouchableOpacity>
 
@@ -172,7 +180,7 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: '#FFC107', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 6 },
   btnDisabled: { opacity: 0.6 },
   btnText: { fontWeight: '700' },
-  guestBtn: { marginTop: 12, alignItems: 'center' },
+  guestBtn: { marginTop: 12, alignItems: 'center', paddingVertical: 12 },
   guestText: { fontWeight: '700', fontSize: 16, color: '#F4B400' },
   footer: { textAlign: 'center', marginTop: 16, color: '#444' },
   link: { fontWeight: '700', color: '#111' },

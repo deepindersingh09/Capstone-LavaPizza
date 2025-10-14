@@ -27,18 +27,18 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
     try {
       console.log('🎨 CustomDrawer: Loading user name...');
       
-      // Check if user is in guest mode
+      // Check if user is in guest mode FIRST
       const guestMode = await AsyncStorage.getItem('@guest_mode');
-      console.log('🎨 Guest mode:', guestMode);
+      console.log('🎨 Guest mode value:', guestMode);
       
       if (guestMode === '1') {
-        console.log('🎨 User is in guest mode');
+        console.log('🎨 User is in GUEST mode');
         setUserName('Guest');
         setIsGuest(true);
         return;
       }
 
-      // Try to get name from AsyncStorage first (faster)
+      // Not guest mode, try to get user name
       let firstName = await AsyncStorage.getItem('@user_first_name');
       console.log('🎨 First name from AsyncStorage:', firstName);
       
@@ -46,12 +46,11 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       if (!firstName && auth.currentUser?.displayName) {
         firstName = auth.currentUser.displayName;
         console.log('🎨 First name from Firebase Auth:', firstName);
-        // Save it to AsyncStorage for next time
         await AsyncStorage.setItem('@user_first_name', firstName);
       }
 
       // Check Firebase currentUser
-      console.log('🎨 Firebase currentUser:', auth.currentUser?.email);
+      console.log('🎨 Firebase currentUser:', auth.currentUser?.email || 'Not logged in');
 
       if (firstName) {
         console.log('🎨 Setting user name to:', firstName);

@@ -1,3 +1,4 @@
+// app/_layout.tsx - WITH GUEST MODE SUPPORT
 import React, { useEffect, useState } from 'react';
 import { Slot, useRouter, usePathname } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,6 +16,7 @@ export default function RootLayout() {
   // Firebase session
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
+      console.log('🔐 Auth state changed:', u?.email || 'No user');
       setUser(u ?? null);
       setAuthReady(true);
     });
@@ -25,14 +27,18 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       const flag = await AsyncStorage.getItem('@guest_mode');
+      console.log('👤 Guest mode flag:', flag);
       setGuest(flag === '1');
       setGuestReady(true);
     })();
   }, []);
 
-  // If an old anonymous session exists, sign it out so it doesn't confuse the gate
+  // If an old anonymous session exists, sign it out
   useEffect(() => {
-    if (authReady && user?.isAnonymous) void signOut(auth);
+    if (authReady && user?.isAnonymous) {
+      console.log('⚠️ Signing out anonymous user');
+      void signOut(auth);
+    }
   }, [authReady, user]);
 
   useEffect(() => {
@@ -41,14 +47,24 @@ export default function RootLayout() {
     const inAuth = pathname.startsWith('/auth');
     const isAuthed = (!!user && !user.isAnonymous) || guest;
 
-    // ✅ Only stop unauthenticated users from entering the app.
-    //    DO NOT push authed users away from /auth (so the screen stays visible).
+    console.log('🚦 Navigation check:', {
+      pathname,
+      inAuth,
+      isAuthed,
+      hasUser: !!user,
+      isGuest: guest
+    });
+
+    // Only redirect unauthenticated users trying to access the app
     if (!isAuthed && !inAuth) {
-      router.replace('/auth/login');   // or '/auth/signup'
+      console.log('❌ Not authenticated, redirecting to login');
+      router.replace('/auth/login');
     }
-    // (No "if (isAuthed && inAuth) go to home" branch on purpose)
   }, [authReady, guestReady, user, guest, pathname, router]);
 
-  if (!authReady || !guestReady) return null; // optional splash/loader
+  if (!authReady || !guestReady) {
+    return null; // Show nothing while loading
+  }
+
   return <Slot />;
 }
