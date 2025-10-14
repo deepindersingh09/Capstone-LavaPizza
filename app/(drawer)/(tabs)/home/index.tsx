@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, Image, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '@/lib/firebase';
 
@@ -20,27 +21,104 @@ const specials = [
   { id: 'sp4', title: 'Devil Fries', img: require('../../../../assets/images/menu/devil_fries.jpg') },
 ];
 
+// ✅ Updated categories with route IDs matching menuData.ts
 const categories = [
-  { id: 'c1', title: 'Pasta', img: require('../../../../assets/images/menu/pasta.png') },
-  { id: 'c2', title: 'Gourmet Pizza', img: require('../../../../assets/images/menu/pizza2.png') },
-  { id: 'c3', title: 'Pizza', img: require('../../../../assets/images/menu/pizza3.jpg') },
-  { id: 'c4', title: 'Double Pizza Deals', img: require('../../../../assets/images/menu/double_pizza.png') },
-  { id: 'c5', title: 'Appetizers', img: require('../../../../assets/images/menu/appetizers.png') },
-  { id: 'c6', title: 'Drinks & Dips', img: require('../../../../assets/images/menu/drinks.png') },
-  { id: 'c7', title: 'Chicken Wings', img: require('../../../../assets/images/menu/chicken_wings.png') },
-  { id: 'c8', title: 'Poutines', img: require('../../../../assets/images/menu/poutines.png') },
-  { id: 'c9', title: 'Pizza Subs', img: require('../../../../assets/images/menu/pizza_subs.png') },
-  { id: 'c10', title: 'Shawarma Wraps', img: require('../../../../assets/images/menu/shawarma_wraps.png') },
-  { id: 'c11', title: 'Sides', img: require('../../../../assets/images/menu/sides.png') },
-  { id: 'c12', title: 'Walk-In Specials', img: require('../../../../assets/images/menu/walk_in_specials.png') },
-  { id: 'c13', title: 'Meals', img: require('../../../../assets/images/menu/meals.png') },
-  { id: 'c14', title: 'Salads', img: require('../../../../assets/images/menu/salads.png') },
-  { id: 'c15', title: 'Cakes', img: require('../../../../assets/images/menu/cakes.png') },
+  { 
+    id: 'c1', 
+    title: 'Pasta', 
+    img: require('../../../../assets/images/menu/pasta.png'),
+    routeId: 'pasta'
+  },
+  { 
+    id: 'c2', 
+    title: 'Gourmet Pizza', 
+    img: require('../../../../assets/images/menu/pizza2.png'),
+    routeId: 'gourmet-pizza'
+  },
+  { 
+    id: 'c3', 
+    title: 'Pizza', 
+    img: require('../../../../assets/images/menu/pizza3.jpg'),
+    routeId: 'pizza'
+  },
+  { 
+    id: 'c4', 
+    title: 'Double Pizza Deals', 
+    img: require('../../../../assets/images/menu/double_pizza.png'),
+    routeId: 'double-pizza-deals'
+  },
+  { 
+    id: 'c5', 
+    title: 'Appetizers', 
+    img: require('../../../../assets/images/menu/appetizers.png'),
+    routeId: 'appetizers'
+  },
+  { 
+    id: 'c6', 
+    title: 'Drinks & Dips', 
+    img: require('../../../../assets/images/menu/drinks.png'),
+    routeId: 'drinks-dips'
+  },
+  { 
+    id: 'c7', 
+    title: 'Chicken Wings', 
+    img: require('../../../../assets/images/menu/chicken_wings.png'),
+    routeId: 'chicken-wings'
+  },
+  { 
+    id: 'c8', 
+    title: 'Poutines', 
+    img: require('../../../../assets/images/menu/poutines.png'),
+    routeId: 'poutines'
+  },
+  { 
+    id: 'c9', 
+    title: 'Pizza Subs', 
+    img: require('../../../../assets/images/menu/pizza_subs.png'),
+    routeId: 'pizza-subs'
+  },
+  { 
+    id: 'c10', 
+    title: 'Shawarma Wraps', 
+    img: require('../../../../assets/images/menu/shawarma_wraps.png'),
+    routeId: 'shawarma-wraps'
+  },
+  { 
+    id: 'c11', 
+    title: 'Sides', 
+    img: require('../../../../assets/images/menu/sides.png'),
+    routeId: 'sides'
+  },
+  { 
+    id: 'c12', 
+    title: 'Walk-In Specials', 
+    img: require('../../../../assets/images/menu/walk_in_specials.png'),
+    routeId: 'walk-in-specials'
+  },
+  { 
+    id: 'c13', 
+    title: 'Meals', 
+    img: require('../../../../assets/images/menu/meals.png'),
+    routeId: 'meals'
+  },
+  { 
+    id: 'c14', 
+    title: 'Salads', 
+    img: require('../../../../assets/images/menu/salads.png'),
+    routeId: 'salads'
+  },
+  { 
+    id: 'c15', 
+    title: 'Cakes', 
+    img: require('../../../../assets/images/menu/cakes.png'),
+    routeId: 'cakes'
+  },
 ];
 
 const imgSrc = (img: any) => (typeof img === 'string' ? { uri: img } : img);
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [userName, setUserName] = useState('There');
 
   // ✅ Load user name when screen loads
@@ -85,6 +163,23 @@ export default function HomeScreen() {
     }
   };
 
+  // ✅ Handle category navigation - FIXED: Using absolute paths
+  const handleCategoryPress = (routeId: string) => {
+    router.push(`/menu/${routeId}`);
+  };
+
+  // ✅ Handle deal navigation - FIXED: Using absolute path
+  const handleDealPress = (dealId: string) => {
+    // Navigate to specific deal or double pizza deals category
+    router.push('/menu/double-pizza-deals');
+  };
+
+  // ✅ Handle special navigation - FIXED: Using absolute path
+  const handleSpecialPress = (specialId: string) => {
+    // Navigate to walk-in specials or specific item
+    router.push('/menu/walk-in-specials');
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -100,7 +195,11 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.dealCard} activeOpacity={0.85}>
+            <TouchableOpacity 
+              style={styles.dealCard} 
+              activeOpacity={0.85}
+              onPress={() => handleDealPress(item.id)}
+            >
               <Image source={imgSrc(item.img)} style={styles.dealImage} />
               <Text numberOfLines={1} style={styles.dealTitle}>{item.title}</Text>
               <Text style={styles.dealPrice}>${item.price.toFixed(2)}</Text>
@@ -116,7 +215,11 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.specialCard} activeOpacity={0.85}>
+            <TouchableOpacity 
+              style={styles.specialCard} 
+              activeOpacity={0.85}
+              onPress={() => handleSpecialPress(item.id)}
+            >
               <Image source={imgSrc(item.img)} style={styles.specialImage} />
               <Text numberOfLines={1} style={styles.specialTitle}>{item.title}</Text>
             </TouchableOpacity>
@@ -126,7 +229,12 @@ export default function HomeScreen() {
         <Text style={styles.section}>Explore the menu</Text>
         <View style={styles.grid}>
           {categories.map((c) => (
-            <TouchableOpacity key={c.id} style={styles.gridCard} activeOpacity={0.9}>
+            <TouchableOpacity 
+              key={c.id} 
+              style={styles.gridCard} 
+              activeOpacity={0.9}
+              onPress={() => handleCategoryPress(c.routeId)}
+            >
               <Image source={imgSrc(c.img)} style={styles.gridImage} />
               <Text numberOfLines={2} style={styles.gridTitle}>{c.title}</Text>
             </TouchableOpacity>
