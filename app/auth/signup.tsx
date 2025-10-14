@@ -1,14 +1,16 @@
+// app/auth/signup.tsx
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 
-
 export default function Signup() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -16,16 +18,31 @@ export default function Signup() {
   const [agreed, setAgreed] = useState(false);
 
   const handleSignup = async () => {
-    if (!email || !password) return Alert.alert('Missing info', 'Enter email and password');
-    if (password.length < 6) return Alert.alert('Weak password', 'Use at least 6 characters');
-    if (password !== confirm) return Alert.alert('Mismatch', 'Passwords do not match');
-    if (!agreed) return Alert.alert('Hold up', 'Please agree to Terms & Privacy');
+    if (!firstName || !email || !password) 
+      return Alert.alert('Missing info', 'Enter first name, email and password');
+    if (password.length < 6) 
+      return Alert.alert('Weak password', 'Use at least 6 characters');
+    if (password !== confirm) 
+      return Alert.alert('Mismatch', 'Passwords do not match');
+    if (!agreed) 
+      return Alert.alert('Hold up', 'Please agree to Terms & Privacy');
 
     setBusy(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
 
-    
+      // ✅ Store user's first name in Firebase profile
+      await updateProfile(cred.user, {
+        displayName: firstName.trim(),
+      });
+
+      // ✅ Also store full name locally for easy access
+      await AsyncStorage.setItem('@user_first_name', firstName.trim());
+      if (lastName) {
+        await AsyncStorage.setItem('@user_last_name', lastName.trim());
+      }
+
+      // Send verification email and sign out
       await sendEmailVerification(cred.user);
       await signOut(auth);
 
@@ -34,7 +51,7 @@ export default function Signup() {
         'We sent a verification link to your inbox. Please verify, then sign in.'
       );
       await AsyncStorage.removeItem('@order_mode');
-      router.replace('/start');
+      router.replace('/auth/login');
     } catch (e: any) {
       Alert.alert('Sign up failed', e.message);
     } finally {
@@ -46,6 +63,24 @@ export default function Signup() {
     <View style={styles.wrap}>
       <Text style={styles.title}>Create Account</Text>
       <Text style={styles.subtitle}>Get started now!</Text>
+
+      {/* ✅ Added First Name field */}
+      <TextInput
+        placeholder="First Name *"
+        autoCapitalize="words"
+        value={firstName}
+        onChangeText={setFirstName}
+        style={styles.input}
+      />
+
+      {/* ✅ Added Last Name field (optional) */}
+      <TextInput
+        placeholder="Last Name (optional)"
+        autoCapitalize="words"
+        value={lastName}
+        onChangeText={setLastName}
+        style={styles.input}
+      />
 
       <TextInput
         placeholder="Email address"

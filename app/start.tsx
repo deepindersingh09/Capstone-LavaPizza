@@ -1,23 +1,31 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, ImageBackground, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Start() {
   const router = useRouter();
 
-  const go = (type: 'delivery' | 'pickup') => {
-  switch (type) {
-    case 'delivery':
-      router.push('/delivery_address');
-      break;
-    case 'pickup':
-      router.push('/pickup_location');  
-      break;
-  }
-};
+  const go = async (type: 'delivery' | 'pickup') => {
+    try {
+      // Set a flag to indicate this is initial order mode setup
+      await AsyncStorage.setItem('@order_mode', type);
+      
+      switch (type) {
+        case 'delivery':
+          router.push('/delivery_address');
+          break;
+        case 'pickup':
+          router.push('/pickup_location');  
+          break;
+      }
+    } catch (e) {
+      console.warn('Failed to set order mode', e);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
+  };
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -103,7 +111,7 @@ const styles = StyleSheet.create({
     color: 'black',
     marginTop: 4,
     fontSize: 14,
-    fontWeight: 900
+    fontWeight: '900'
   },
   center: {
     flex: 1,
@@ -139,7 +147,7 @@ const styles = StyleSheet.create({
     gap: 20,
     marginBottom: 45,
   },
-    bottomBtn: {
+  bottomBtn: {
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 12,
@@ -148,8 +156,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: 'transparent', 
   },
-
-
   bottomBtnText: {
     fontWeight: '700',
     color: '#111',

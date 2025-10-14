@@ -1,67 +1,252 @@
-import React from 'react';
-import { DrawerContentComponentProps, DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
-import { View, Text, Image } from 'react-native';
-import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+// components/CustomDrawer.tsx
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { DrawerContentScrollView, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useRouter } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 
 export default function CustomDrawer(props: DrawerContentComponentProps) {
+  const router = useRouter();
+  const [userName, setUserName] = useState('Guest');
+  const [isGuest, setIsGuest] = useState(false);
+
+  // ✅ Load user's name when drawer opens
+  useEffect(() => {
+    loadUserName();
+  }, []);
+
+  // ✅ Reload name when drawer navigation state changes (e.g., after login)
+  useEffect(() => {
+    loadUserName();
+  }, [props.state]);
+
+  const loadUserName = async () => {
+    try {
+      console.log('🎨 CustomDrawer: Loading user name...');
+      
+      // Check if user is in guest mode
+      const guestMode = await AsyncStorage.getItem('@guest_mode');
+      console.log('🎨 Guest mode:', guestMode);
+      
+      if (guestMode === '1') {
+        console.log('🎨 User is in guest mode');
+        setUserName('Guest');
+        setIsGuest(true);
+        return;
+      }
+
+      // Try to get name from AsyncStorage first (faster)
+      let firstName = await AsyncStorage.getItem('@user_first_name');
+      console.log('🎨 First name from AsyncStorage:', firstName);
+      
+      // If not in storage, try to get from Firebase auth
+      if (!firstName && auth.currentUser?.displayName) {
+        firstName = auth.currentUser.displayName;
+        console.log('🎨 First name from Firebase Auth:', firstName);
+        // Save it to AsyncStorage for next time
+        await AsyncStorage.setItem('@user_first_name', firstName);
+      }
+
+      // Check Firebase currentUser
+      console.log('🎨 Firebase currentUser:', auth.currentUser?.email);
+
+      if (firstName) {
+        console.log('🎨 Setting user name to:', firstName);
+        setUserName(firstName);
+        setIsGuest(false);
+      } else {
+        console.log('🎨 No name found, defaulting to Guest');
+        setUserName('Guest');
+        setIsGuest(true);
+      }
+    } catch (e) {
+      console.error('❌ Failed to load user name', e);
+      setUserName('Guest');
+      setIsGuest(true);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Sign out from Firebase
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
+      
+      // Clear local storage
+      await AsyncStorage.removeItem('@guest_mode');
+      await AsyncStorage.removeItem('@user_first_name');
+      await AsyncStorage.removeItem('@user_last_name');
+      await AsyncStorage.removeItem('@order_mode');
+      
+      // Navigate to login
+      router.replace('/auth/login');
+    } catch (e) {
+      console.warn('Logout failed', e);
+    }
+  };
+
+  const menuItems = [
+    { 
+      icon: 'home-outline', 
+      label: 'Home', 
+      route: '/(drawer)/(tabs)/home',
+      iconSet: 'Ionicons' as const
+    },
+    { 
+      icon: 'pizza', 
+      label: 'Menu', 
+      route: '/(drawer)/(tabs)/specials',
+      iconSet: 'MaterialCommunityIcons' as const
+    },
+    { 
+      icon: 'heart-outline', 
+      label: 'Favourites', 
+      route: '/favourites',
+      iconSet: 'Ionicons' as const
+    },
+    { 
+      icon: 'wallet-outline', 
+      label: 'Wallet', 
+      route: '/wallet',
+      iconSet: 'Ionicons' as const
+    },
+    { 
+      icon: 'clipboard-text-outline', 
+      label: 'Order History', 
+      route: '/orders',
+      iconSet: 'MaterialCommunityIcons' as const
+    },
+    { 
+      icon: 'settings-outline', 
+      label: 'Settings', 
+      route: '/settings',
+      iconSet: 'Ionicons' as const
+    },
+    { 
+      icon: 'help-circle-outline', 
+      label: 'Support', 
+      route: '/support',
+      iconSet: 'Ionicons' as const
+    },
+  ];
+
   return (
-    <DrawerContentScrollView
-      {...props}
-      contentContainerStyle={{ flex: 1, paddingTop: 40, backgroundColor: '#FFF3DC' }}
-    >
-      {/* Header */}
-      <View style={{ alignItems: 'center', marginBottom: 24, paddingHorizontal: 16 }}>
-        <Image source={{ uri: 'https://i.pravatar.cc/120' }} style={{ width: 72, height: 72, borderRadius: 36 }} />
-        <Text style={{ fontWeight: '700', marginTop: 8, fontSize: 16 }}>Zaiden</Text>
-        <Text style={{ color: '#666', marginTop: 2 }}>password</Text>
+    <DrawerContentScrollView {...props} contentContainerStyle={styles.container}>
+      {/* Profile Section */}
+      <View style={styles.profileSection}>
+        <Image
+          source={require('../assets/images/profile_picture.png')}
+          style={styles.profileImage}
+        />
+        <View style={styles.profileInfo}>
+          <Text style={styles.greeting}>
+            {isGuest ? 'Welcome,' : 'Hi,'}
+          </Text>
+          {/* ✅ Display dynamic user name */}
+          <Text style={styles.userName}>{userName}!</Text>
+        </View>
       </View>
 
-      {/* Items */}
-      <DrawerItem
-        label="Favourites"
-        icon={({ size, color }) => <Ionicons name="heart-outline" size={size} color={color} />}
-        onPress={() => props.navigation.navigate('favourites')}
-      />
+      {/* Menu Items */}
+      <View style={styles.menuSection}>
+        {menuItems.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.menuItem}
+            onPress={() => router.push(item.route as any)}
+          >
+            {item.iconSet === 'Ionicons' ? (
+              <Ionicons name={item.icon as any} size={22} color="#333" />
+            ) : (
+              <MaterialCommunityIcons name={item.icon as any} size={22} color="#333" />
+            )}
+            <Text style={styles.menuLabel}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-      <DrawerItem
-        label="My Wallet"
-        icon={({ size, color }) => <Ionicons name="wallet-outline" size={size} color={color} />}
-        onPress={() => props.navigation.navigate('wallet')}
-      />
-
-      <DrawerItem
-        label="FAQs"
-        icon={({ size, color }) => <Feather name="help-circle" size={size} color={color} />}
-        onPress={() => props.navigation.navigate('faq')}
-      />
-
-      <DrawerItem
-        label="Support"
-        icon={({ size, color }) => <Feather name="phone" size={size} color={color} />}
-        onPress={() => props.navigation.navigate('support')}
-      />
-
-      <DrawerItem
-        label="Settings"
-        icon={({ size, color }) => <Ionicons name="settings-outline" size={size} color={color} />}
-        onPress={() => props.navigation.navigate('settings')}
-      />
-
-      <DrawerItem
-        label="Logout"
-        icon={({ size, color }) => <MaterialIcons name="logout" size={size} color={color} />}
-        onPress={() => {
-          signOut(auth).then(() => {
-            props.navigation.reset({
-              index: 0,
-              routes: [{ name: 'login' }],
-            });
-          });
-        }}
-      />
+      {/* Logout Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={22} color="#E53935" />
+          <Text style={styles.logoutText}>
+            {isGuest ? 'Exit Guest Mode' : 'Log Out'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </DrawerContentScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 50,
+    backgroundColor: '#FFF8E1',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE082',
+  },
+  profileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 15,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  greeting: {
+    fontSize: 14,
+    color: '#666',
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#E53935',
+    marginTop: 2,
+  },
+  menuSection: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  menuLabel: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 15,
+    fontWeight: '500',
+  },
+  footer: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  logoutText: {
+    fontSize: 16,
+    color: '#E53935',
+    marginLeft: 15,
+    fontWeight: '600',
+  },
+});

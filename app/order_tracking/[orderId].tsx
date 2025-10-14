@@ -147,9 +147,9 @@ export default function OrderTracking() {
     return (
       <View style={styles.center}>
         <Text>Order not found.</Text>
-        <Pressable style={styles.backBtn} onPress={() => router.replace("./order-history")}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={18} />
-          <Text style={{ marginLeft: 6, fontWeight: "600" }}>Back to Order History</Text>
+          <Text style={{ marginLeft: 6, fontWeight: "600" }}>Go Back</Text>
         </Pressable>
       </View>
     );
@@ -176,7 +176,8 @@ export default function OrderTracking() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.replace("./order-history")} hitSlop={8}>
+        {/* ✅ Changed to explicit navigation to account page */}
+        <Pressable onPress={() => router.push('/(drawer)/(tabs)/account')} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color="#111" />
         </Pressable>
         <Text style={styles.headerTitle}>Track Order</Text>

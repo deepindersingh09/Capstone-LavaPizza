@@ -1,8 +1,10 @@
-import React from 'react';
+// app/(drawer)/(tabs)/home/index.tsx
+import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, Image, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Login from '@/app/auth/login';
-const USER_NAME = 'Hi, There';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '@/lib/firebase';
 
 const deals = [
   { id: 'a', title: 'Deal A', price: 24.99, img: require('../../../../assets/images/menu/menu_pizza.png') },
@@ -29,7 +31,7 @@ const categories = [
   { id: 'c8', title: 'Poutines', img: require('../../../../assets/images/menu/poutines.png') },
   { id: 'c9', title: 'Pizza Subs', img: require('../../../../assets/images/menu/pizza_subs.png') },
   { id: 'c10', title: 'Shawarma Wraps', img: require('../../../../assets/images/menu/shawarma_wraps.png') },
-  { id: 'c11', title: 'Sides', img: require('../../../../assets/images/menu/sides.png') }, // fixed label
+  { id: 'c11', title: 'Sides', img: require('../../../../assets/images/menu/sides.png') },
   { id: 'c12', title: 'Walk-In Specials', img: require('../../../../assets/images/menu/walk_in_specials.png') },
   { id: 'c13', title: 'Meals', img: require('../../../../assets/images/menu/meals.png') },
   { id: 'c14', title: 'Salads', img: require('../../../../assets/images/menu/salads.png') },
@@ -39,11 +41,55 @@ const categories = [
 const imgSrc = (img: any) => (typeof img === 'string' ? { uri: img } : img);
 
 export default function HomeScreen() {
+  const [userName, setUserName] = useState('There');
+
+  // ✅ Load user name when screen loads
+  useEffect(() => {
+    loadUserName();
+  }, []);
+
+  // ✅ Reload user name every time screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserName();
+    }, [])
+  );
+
+  const loadUserName = async () => {
+    try {
+      // Check if user is in guest mode
+      const guestMode = await AsyncStorage.getItem('@guest_mode');
+      
+      if (guestMode === '1') {
+        setUserName('There');
+        return;
+      }
+
+      // Try to get name from AsyncStorage first
+      let firstName = await AsyncStorage.getItem('@user_first_name');
+      
+      // If not in storage, try Firebase auth
+      if (!firstName && auth.currentUser?.displayName) {
+        firstName = auth.currentUser.displayName;
+        await AsyncStorage.setItem('@user_first_name', firstName);
+      }
+
+      if (firstName) {
+        setUserName(firstName);
+      } else {
+        setUserName('There');
+      }
+    } catch (e) {
+      console.warn('Failed to load user name', e);
+      setUserName('There');
+    }
+  };
+
   return (
-    // Tabs header is visible, so we only need left/right/bottom safe areas
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.hello}>{USER_NAME}!</Text>
+        {/* ✅ Display dynamic user name */}
+        <Text style={styles.hello}>Hi, {userName}!</Text>
         <Text style={styles.sub}>Let the cheesy goodness begin!</Text>
 
         <Text style={styles.section}>Deals for you</Text>
@@ -62,7 +108,7 @@ export default function HomeScreen() {
           )}
         />
 
-        <Text style={styles.section}>Lava’s Specials</Text>
+        <Text style={styles.section}>Lava's Specials</Text>
         <FlatList
           horizontal
           data={specials}

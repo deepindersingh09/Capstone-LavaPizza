@@ -1,3 +1,4 @@
+// app/(drawer)/(tabs)/account.tsx
 // By Ravneet Kaur
 import React from "react";
 import { useRouter } from "expo-router";
@@ -47,12 +48,12 @@ export default function Profile() {
             onPress={() => {
               if (option === "General") router.push("/general");
               else if (option === "Notifications")
-                router.push("../../notification_setting");
+                router.push("/notification_setting");
               else if (option === "Payment") router.push("/payment");
               else if (option === "Order History")
                 router.push("/orders");
               else if (option === "Track Order")
-                router.push("../../../order_tracking/12345"); 
+                router.push("/order_tracking/12345"); // ✅ Fixed to absolute path
                 // 👆 replace 12345 with actual orderId dynamically
               else if (option === "Update Delivery Info")
                 router.push("/delivery_address");
@@ -77,9 +78,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     padding: 16,
-    paddingTop: 16, // Changed from 40
+    paddingTop: 16,
   },
-  // Remove header styles - they're not needed anymore
   profileSection: {
     flexDirection: "row",
     alignItems: "center",

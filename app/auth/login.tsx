@@ -1,11 +1,11 @@
-// app/auth/login.tsx
+// app/auth/login.tsx - WITH DEBUG LOGGING
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { signInWithEmailAndPassword, sendEmailVerification, signOut, signInAnonymously } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../../lib/firebase';
-import { continueAsGuestLocal } from '@/lib/auth-helper';
+import { getUserFromFirestore } from '../../lib/firestore-helper';
 
 export default function Login() {
   const router = useRouter();
@@ -13,7 +13,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // ----- Email / Password sign-in -----
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Missing info', 'Enter email and password');
@@ -21,10 +20,15 @@ export default function Login() {
     }
     setBusy(true);
     try {
+      console.log('🔐 Attempting login for:', email);
+      
+      // Sign in with Firebase Auth
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      console.log('✅ Firebase Auth successful, User ID:', cred.user.uid);
 
-      // Require verified email; resend and sign out if not verified
+      // Check if email is verified
       if (!cred.user.emailVerified) {
+        console.log('⚠️ Email not verified');
         await sendEmailVerification(cred.user);
         await signOut(auth);
         Alert.alert(
@@ -34,22 +38,87 @@ export default function Login() {
         return;
       }
 
-      // Success → go to app (or let RootLayout gate route you)
+      console.log('📧 Email verified, fetching user data from Firestore...');
+
+      // ✅ Fetch user data from Firestore
+      const userData = await getUserFromFirestore(cred.user.uid);
+      console.log('📦 Firestore data:', userData);
+
+      if (userData && userData.firstName) {
+        // Store user's first name locally
+        await AsyncStorage.setItem('@user_first_name', userData.firstName);
+        console.log('✅ Saved first name to AsyncStorage:', userData.firstName);
+        
+        if (userData.lastName) {
+          await AsyncStorage.setItem('@user_last_name', userData.lastName);
+          console.log('✅ Saved last name to AsyncStorage:', userData.lastName);
+        }
+
+        // Clear guest mode
+        await AsyncStorage.removeItem('@guest_mode');
+        console.log('✅ Cleared guest mode');
+
+        Alert.alert('Welcome back!', `Hi ${userData.firstName}! 🍕`);
+      } else {
+        console.log('⚠️ No Firestore data found, checking Auth profile...');
+        
+        // Fallback: try to get name from Firebase Auth profile
+        if (cred.user.displayName) {
+          await AsyncStorage.setItem('@user_first_name', cred.user.displayName);
+          await AsyncStorage.removeItem('@guest_mode');
+          console.log('✅ Saved name from Auth profile:', cred.user.displayName);
+          Alert.alert('Welcome back!', `Hi ${cred.user.displayName}! 🍕`);
+        } else {
+          console.log('❌ No name found anywhere!');
+          Alert.alert('Notice', 'Please update your profile with your name.');
+        }
+      }
+
+      // Clear any existing order mode
       await AsyncStorage.removeItem('@order_mode');
+      
+      // Verify what's in storage
+      const storedName = await AsyncStorage.getItem('@user_first_name');
+      const guestMode = await AsyncStorage.getItem('@guest_mode');
+      console.log('🔍 Final check - Stored name:', storedName);
+      console.log('🔍 Final check - Guest mode:', guestMode);
+      
+      // Navigate to start page
+      console.log('🚀 Navigating to /start');
       router.replace('/start');
     } catch (e: any) {
-      Alert.alert('Sign in failed', e?.message ?? 'Unable to sign in');
+      console.error('❌ Login error:', e);
+      let errorMessage = 'Unable to sign in';
+      
+      // Handle common Firebase errors
+      if (e.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email. Please sign up first.';
+      } else if (e.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password. Please try again.';
+      } else if (e.code === 'auth/invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (e.code === 'auth/user-disabled') {
+        errorMessage = 'This account has been disabled. Contact support.';
+      } else if (e.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Please try again later.';
+      }
+      
+      Alert.alert('Sign in failed', errorMessage);
     } finally {
       setBusy(false);
     }
   };
 
-  // ----- Guest path (anonymous if enabled; else local flag) -----
   const handleGuest = async () => {
-  await AsyncStorage.removeItem('@order_mode'); // ✅
-  await AsyncStorage.setItem('@guest_mode', '1');
-  router.replace('/start');
-};
+    console.log('👤 Continuing as guest');
+    await AsyncStorage.removeItem('@order_mode');
+    await AsyncStorage.setItem('@guest_mode', '1');
+    // Clear user name for guest mode
+    await AsyncStorage.removeItem('@user_first_name');
+    await AsyncStorage.removeItem('@user_last_name');
+    console.log('✅ Guest mode set');
+    router.replace('/start');
+  };
 
   return (
     <View style={styles.wrap}>
@@ -72,17 +141,24 @@ export default function Login() {
         style={styles.input}
       />
 
-      <TouchableOpacity style={[styles.btn, busy && styles.btnDisabled]} onPress={handleLogin} disabled={busy}>
-        {busy ? <ActivityIndicator /> : <Text style={styles.btnText}>Sign In</Text>}
+      <TouchableOpacity 
+        style={[styles.btn, busy && styles.btnDisabled]} 
+        onPress={handleLogin} 
+        disabled={busy}
+      >
+        {busy ? (
+          <ActivityIndicator color="#000" />
+        ) : (
+          <Text style={styles.btnText}>Sign In</Text>
+        )}
       </TouchableOpacity>
 
-      {/* Continue as Guest */}
       <TouchableOpacity onPress={handleGuest} style={styles.guestBtn}>
-  <Text style={styles.guestText}>Continue as guest</Text>
-</TouchableOpacity>
+        <Text style={styles.guestText}>Continue as guest</Text>
+      </TouchableOpacity>
 
       <Text style={styles.footer}>
-        Don’t have an account? <Link href="/auth/signup" style={styles.link}>Sign up</Link>
+        Don't have an account? <Link href="/auth/signup" style={styles.link}>Sign up</Link>
       </Text>
     </View>
   );

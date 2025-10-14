@@ -9,11 +9,11 @@ export default function General() {
 
   return (
     <View style={styles.container}>
-      {/* Header */} 
+      {/* Header */ }
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace('/(drawer)/(tabs)/account')}>
-  <Ionicons name="arrow-back" size={28} color="black"/>
-</TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(drawer)/(tabs)/account')}>
+          <Ionicons name="arrow-back" size={28} color="black"/>
+        </TouchableOpacity>
 
         <Text style={styles.headerTitle}>General</Text>
         <View style={{ width: 30 }} />
@@ -49,8 +49,10 @@ export default function General() {
               onPress={() => {
                 if (item === "About") {
                   router.push("/about");
+                } else if (item === "Rewards Terms") {
+                  router.push("/rewards");
                 } else if (item === "Privacy Policy") {
-                  router.push("/policy/privacy");
+                  router.push("/privacy");
                 } else if (item === "Delete Account") {
                   // Handle delete account
                 }
@@ -65,6 +67,10 @@ export default function General() {
               >
                 {item}
               </Text>
+              {/* Add chevron icon for navigation items */}
+              {item !== "Delete Account" && (
+                <Ionicons name="chevron-forward" size={22} color="#666" />
+              )}
             </TouchableOpacity>
           )
         )}
