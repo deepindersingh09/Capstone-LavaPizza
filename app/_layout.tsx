@@ -1,11 +1,12 @@
 // app/_layout.tsx - WITH GUEST MODE SUPPORT
 import React, { useEffect, useState } from 'react';
-import { Slot, useRouter, usePathname } from 'expo-router';
+import { Slot, useRouter, usePathname, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { CartProvider } from './context/CartContext';
 
+import { ThemeProvider } from '../lib/ThemeContext';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -34,6 +35,15 @@ export default function RootLayout() {
       setGuestReady(true);
     })();
   }, []);
+
+  <ThemeProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="auth/login" />
+        {/* ... other screens */}
+      </Stack>
+    </ThemeProvider>
+ 
 
   // If an old anonymous session exists, sign it out
   useEffect(() => {

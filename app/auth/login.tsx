@@ -26,6 +26,8 @@ import {
 } from '@react-native-google-signin/google-signin';
 import { auth } from '../../lib/firebase';
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
