@@ -1,16 +1,83 @@
-// app/auth/login.tsx - FIXED GUEST MODE
-import React, { useState } from 'react';
+// app/auth/login.tsx - WITH GOOGLE SIGN-IN
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { signInWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendEmailVerification, signOut, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google'; // ✅ *** TYPO FIXED ***
 import { auth } from '../../lib/firebase';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Google Sign-In setup
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: '898725473422-h5o07rea27deqfs5lhv05fitdk8qr38c.apps.googleusercontent.com', // Use expoClientId for dev
+    androidClientId: '898725473422-m5gjnlh4olmspsnovtdbp9o4h7mhqclo.apps.googleusercontent.com', // For production .aab
+  });
+
+  // Handle Google Sign-In response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      handleGoogleSignIn(id_token);
+    }
+  }, [response]);
+
+  const handleGoogleSignIn = async (idToken: string) => {
+    setBusy(true);
+    try {
+      console.log('🔐 Google Sign-In: Creating credential');
+      
+      const credential = GoogleAuthProvider.credential(idToken);
+      const cred = await signInWithCredential(auth, credential);
+      
+      console.log('✅ Google Auth successful, User ID:', cred.user.uid);
+      console.log('📧 Email:', cred.user.email);
+      console.log('👤 Display Name:', cred.user.displayName);
+
+      // Extract name from Google profile
+      const displayName = cred.user.displayName || '';
+      const nameParts = displayName.split(' ');
+      const firstName = nameParts[0] || cred.user.email?.split('@')[0] || 'User';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      // Save user data to AsyncStorage
+      const userData = {
+        firstName,
+        lastName,
+        email: cred.user.email,
+        uid: cred.user.uid,
+      };
+
+      await AsyncStorage.setItem(`@user_${cred.user.uid}`, JSON.stringify(userData));
+      await AsyncStorage.setItem('@user_first_name', firstName);
+      if (lastName) {
+        await AsyncStorage.setItem('@user_last_name', lastName);
+      }
+      
+      // Clear guest mode
+      await AsyncStorage.removeItem('@guest_mode');
+      await AsyncStorage.removeItem('@order_mode');
+      
+      console.log('✅ Google Sign-In complete, name saved:', firstName);
+      
+      Alert.alert('Welcome!', `Hi ${firstName}! 🍕`);
+      router.replace('/start');
+      
+    } catch (e: any) {
+      console.error('❌ Google Sign-In error:', e);
+      Alert.alert('Sign in failed', 'Unable to sign in with Google. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -106,21 +173,16 @@ export default function Login() {
     try {
       console.log('👤 Continuing as guest...');
       
-      // Clear any existing user data
       await AsyncStorage.removeItem('@order_mode');
       await AsyncStorage.removeItem('@user_first_name');
       await AsyncStorage.removeItem('@user_last_name');
-      
-      // Set guest mode flag
       await AsyncStorage.setItem('@guest_mode', '1');
       
       console.log('✅ Guest mode activated');
       
-      // Verify it was set
       const guestCheck = await AsyncStorage.getItem('@guest_mode');
       console.log('🔍 Guest mode verification:', guestCheck);
       
-      // Navigate to start
       router.replace('/start');
     } catch (error) {
       console.error('❌ Error setting guest mode:', error);
@@ -161,6 +223,23 @@ export default function Login() {
         )}
       </TouchableOpacity>
 
+      {/* Divider */}
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>OR</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      {/* Google Sign-In Button */}
+      <TouchableOpacity 
+        style={[styles.googleBtn, busy && styles.btnDisabled]} 
+        onPress={() => promptAsync()}
+        disabled={!request || busy}
+      >
+        <Text style={styles.googleIcon}>G</Text>
+        <Text style={styles.googleBtnText}>Continue with Google</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity onPress={handleGuest} style={styles.guestBtn} disabled={busy}>
         <Text style={styles.guestText}>Continue as guest</Text>
       </TouchableOpacity>
@@ -180,6 +259,34 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: '#FFC107', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 6 },
   btnDisabled: { opacity: 0.6 },
   btnText: { fontWeight: '700' },
+  
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#ddd' },
+  dividerText: { marginHorizontal: 10, color: '#999', fontWeight: '600' },
+  
+  googleBtn: { 
+    backgroundColor: '#fff', 
+    padding: 14, 
+    borderRadius: 12, 
+    alignItems: 'center', 
+    flexDirection: 'row',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  googleIcon: { 
+    fontSize: 20, 
+    fontWeight: '700', 
+    marginRight: 10,
+    color: '#4285F4' 
+  },
+  googleBtnText: { fontWeight: '600', color: '#333' },
+  
   guestBtn: { marginTop: 12, alignItems: 'center', paddingVertical: 12 },
   guestText: { fontWeight: '700', fontSize: 16, color: '#F4B400' },
   footer: { textAlign: 'center', marginTop: 16, color: '#444' },
