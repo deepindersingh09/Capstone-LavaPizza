@@ -25,6 +25,8 @@ import {
   User as GoogleUser,
 } from '@react-native-google-signin/google-signin';
 import { auth } from '../../lib/firebase';
+import * as WebBrowser from 'expo-web-browser';
+
 
 WebBrowser.maybeCompleteAuthSession();
 
