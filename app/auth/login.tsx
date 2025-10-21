@@ -1,11 +1,29 @@
-// app/auth/login.tsx - WITH GOOGLE SIGN-IN
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+// app/auth/login.tsx — Google Sign-In (google-signin library) + Email/Password
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { signInWithEmailAndPassword, sendEmailVerification, signOut, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  signInWithCredential,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google'; // ✅ *** TYPO FIXED ***
+import {
+  GoogleSignin,
+  statusCodes,
+  User as GoogleUser,
+} from '@react-native-google-signin/google-signin';
 import { auth } from '../../lib/firebase';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -15,70 +33,78 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
 
-  // Google Sign-In setup
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: '898725473422-h5o07rea27deqfs5lhv05fitdk8qr38c.apps.googleusercontent.com', // Use expoClientId for dev
-    androidClientId: '898725473422-m5gjnlh4olmspsnovtdbp9o4h7mhqclo.apps.googleusercontent.com', // For production .aab
-  });
-
-  // Handle Google Sign-In response
   useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      handleGoogleSignIn(id_token);
-    }
-  }, [response]);
+    GoogleSignin.configure({
+      webClientId:
+        '898725473422-h5o07rea27deqfs5lhv05fitdk8qr38c.apps.googleusercontent.com',
+      offlineAccess: true,
+      forceCodeForRefreshToken: false,
+    });
+    console.log('🔧 Google Sign-In configured');
+  }, []);
 
-  const handleGoogleSignIn = async (idToken: string) => {
-    setBusy(true);
+  // ---- GOOGLE SIGN-IN -> FIREBASE ----
+  const handleGoogleSignIn = async () => {
     try {
-      console.log('🔐 Google Sign-In: Creating credential');
-      
+      setGoogleBusy(true);
+
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      // ⬇️ Force the correct return type to avoid Expo's SignInResponse bleed-through
+      const result = (await GoogleSignin.signIn()) as unknown as GoogleUser;
+      console.log('✅ Google account:', result?.user?.email);
+
+      const idToken =
+        result.idToken ?? (await GoogleSignin.getTokens()).idToken;
+      if (!idToken) throw new Error('No ID token returned from Google Sign-In');
+
       const credential = GoogleAuthProvider.credential(idToken);
-      const cred = await signInWithCredential(auth, credential);
-      
-      console.log('✅ Google Auth successful, User ID:', cred.user.uid);
-      console.log('📧 Email:', cred.user.email);
-      console.log('👤 Display Name:', cred.user.displayName);
+      const userCred = await signInWithCredential(auth, credential);
 
-      // Extract name from Google profile
-      const displayName = cred.user.displayName || '';
-      const nameParts = displayName.split(' ');
-      const firstName = nameParts[0] || cred.user.email?.split('@')[0] || 'User';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      const u = userCred.user;
+      const name = (u.displayName || '').trim();
+      const [firstName, ...rest] = name.split(' ');
+      const lastName = rest.join(' ');
 
-      // Save user data to AsyncStorage
       const userData = {
-        firstName,
-        lastName,
-        email: cred.user.email,
-        uid: cred.user.uid,
+        uid: u.uid,
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email: u.email || '',
+        createdAt: new Date().toISOString(),
       };
-
-      await AsyncStorage.setItem(`@user_${cred.user.uid}`, JSON.stringify(userData));
-      await AsyncStorage.setItem('@user_first_name', firstName);
-      if (lastName) {
-        await AsyncStorage.setItem('@user_last_name', lastName);
-      }
-      
-      // Clear guest mode
+      await AsyncStorage.setItem(`@user_${u.uid}`, JSON.stringify(userData));
+      if (firstName) await AsyncStorage.setItem('@user_first_name', firstName);
+      if (lastName) await AsyncStorage.setItem('@user_last_name', lastName);
       await AsyncStorage.removeItem('@guest_mode');
       await AsyncStorage.removeItem('@order_mode');
-      
-      console.log('✅ Google Sign-In complete, name saved:', firstName);
-      
-      Alert.alert('Welcome!', `Hi ${firstName}! 🍕`);
+
+      Alert.alert('Welcome!', `Hi ${firstName || 'there'}! 🍕`);
       router.replace('/start');
-      
-    } catch (e: any) {
-      console.error('❌ Google Sign-In error:', e);
-      Alert.alert('Sign in failed', 'Unable to sign in with Google. Please try again.');
+    } catch (err: any) {
+      console.error('❌ Google Sign-In error:', err);
+      if (err?.code === statusCodes.SIGN_IN_CANCELLED) {
+        Alert.alert('Cancelled', 'Google Sign-In was cancelled');
+      } else if (err?.code === statusCodes.IN_PROGRESS) {
+        Alert.alert('Please wait', 'Sign-In already in progress');
+      } else if (err?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Play Services', 'Google Play Services is not available or outdated');
+      } else if (err?.code === '10' || String(err?.message).includes('DEVELOPER_ERROR')) {
+        Alert.alert(
+          'Developer error (code 10)',
+          'Fix the Android OAuth client: package must be com.techtitans.lavapizza and SHA-1 must match your build keystore.'
+        );
+      } else {
+        Alert.alert('Error', err?.message || 'Failed to sign in with Google');
+      }
     } finally {
-      setBusy(false);
+      setGoogleBusy(false);
     }
   };
 
+  // ---- EMAIL / PASSWORD ----
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Missing info', 'Enter email and password');
@@ -86,13 +112,9 @@ export default function Login() {
     }
     setBusy(true);
     try {
-      console.log('🔐 Attempting login for:', email);
-      
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      console.log('✅ Firebase Auth successful, User ID:', cred.user.uid);
 
       if (!cred.user.emailVerified) {
-        console.log('⚠️ Email not verified');
         await sendEmailVerification(cred.user);
         await signOut(auth);
         Alert.alert(
@@ -102,87 +124,40 @@ export default function Login() {
         return;
       }
 
-      console.log('📧 Email verified, fetching user data...');
-
-      const userDataString = await AsyncStorage.getItem(`@user_${cred.user.uid}`);
-      
-      if (userDataString) {
-        const userData = JSON.parse(userDataString);
-        console.log('✅ User data found in AsyncStorage:', userData);
-        
-        await AsyncStorage.setItem('@user_first_name', userData.firstName);
-        if (userData.lastName) {
-          await AsyncStorage.setItem('@user_last_name', userData.lastName);
-        }
-        
-        console.log('✅ Name saved:', userData.firstName);
-        await AsyncStorage.removeItem('@guest_mode');
-        
-        Alert.alert('Welcome back!', `Hi ${userData.firstName}! 🍕`);
+      const cache = await AsyncStorage.getItem(`@user_${cred.user.uid}`);
+      if (cache) {
+        const userData = JSON.parse(cache);
+        await AsyncStorage.setItem('@user_first_name', userData.firstName || '');
+        if (userData.lastName) await AsyncStorage.setItem('@user_last_name', userData.lastName);
+      } else if (cred.user.displayName) {
+        await AsyncStorage.setItem('@user_first_name', cred.user.displayName);
       } else {
-        console.log('⚠️ No local data found, checking Auth profile...');
-        
-        if (cred.user.displayName) {
-          await AsyncStorage.setItem('@user_first_name', cred.user.displayName);
-          await AsyncStorage.removeItem('@guest_mode');
-          console.log('✅ Using name from Auth profile:', cred.user.displayName);
-          Alert.alert('Welcome back!', `Hi ${cred.user.displayName}! 🍕`);
-        } else {
-          console.log('❌ No name found, setting default...');
-          const firstName = email.split('@')[0];
-          await AsyncStorage.setItem('@user_first_name', firstName);
-          await AsyncStorage.removeItem('@guest_mode');
-          Alert.alert('Welcome!', `Hi ${firstName}! Update your profile to change your name.`);
-        }
+        const first = email.split('@')[0];
+        await AsyncStorage.setItem('@user_first_name', first);
       }
 
+      await AsyncStorage.removeItem('@guest_mode');
       await AsyncStorage.removeItem('@order_mode');
-      
-      const storedName = await AsyncStorage.getItem('@user_first_name');
-      const guestMode = await AsyncStorage.getItem('@guest_mode');
-      console.log('🔍 Stored name:', storedName);
-      console.log('🔍 Guest mode:', guestMode);
-      
-      console.log('🚀 Navigating to /start');
       router.replace('/start');
     } catch (e: any) {
-      console.error('❌ Login error:', e);
-      let errorMessage = 'Unable to sign in';
-      
-      if (e.code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email. Please sign up first.';
-      } else if (e.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Please try again.';
-      } else if (e.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (e.code === 'auth/user-disabled') {
-        errorMessage = 'This account has been disabled. Contact support.';
-      } else if (e.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later.';
-      } else if (e.code === 'auth/invalid-credential') {
-        errorMessage = 'Invalid credentials. Please check your email and password.';
-      }
-      
-      Alert.alert('Sign in failed', errorMessage);
+      let msg = 'Unable to sign in';
+      if (e.code === 'auth/user-not-found') msg = 'No account found with this email.';
+      else if (e.code === 'auth/wrong-password') msg = 'Incorrect password.';
+      else if (e.code === 'auth/invalid-email') msg = 'Please enter a valid email.';
+      else if (e.code === 'auth/user-disabled') msg = 'This account has been disabled.';
+      else if (e.code === 'auth/too-many-requests') msg = 'Too many attempts. Try later.';
+      else if (e.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
+      Alert.alert('Sign in failed', msg);
     } finally {
       setBusy(false);
     }
   };
 
+  // ---- GUEST ----
   const handleGuest = async () => {
     try {
-      console.log('👤 Continuing as guest...');
-      
-      await AsyncStorage.removeItem('@order_mode');
-      await AsyncStorage.removeItem('@user_first_name');
-      await AsyncStorage.removeItem('@user_last_name');
+      await AsyncStorage.multiRemove(['@order_mode', '@user_first_name', '@user_last_name']);
       await AsyncStorage.setItem('@guest_mode', '1');
-      
-      console.log('✅ Guest mode activated');
-      
-      const guestCheck = await AsyncStorage.getItem('@guest_mode');
-      console.log('🔍 Guest mode verification:', guestCheck);
-      
       router.replace('/start');
     } catch (error) {
       console.error('❌ Error setting guest mode:', error);
@@ -211,36 +186,41 @@ export default function Login() {
         style={styles.input}
       />
 
-      <TouchableOpacity 
-        style={[styles.btn, busy && styles.btnDisabled]} 
-        onPress={handleLogin} 
+      <TouchableOpacity
+        style={[styles.btn, busy && styles.btnDisabled]}
+        onPress={handleLogin}
         disabled={busy}
       >
-        {busy ? (
-          <ActivityIndicator color="#000" />
-        ) : (
-          <Text style={styles.btnText}>Sign In</Text>
-        )}
+        {busy ? <ActivityIndicator /> : <Text style={styles.btnText}>Sign In</Text>}
       </TouchableOpacity>
 
-      {/* Divider */}
-      <View style={styles.divider}>
+      <View style={styles.dividerContainer}>
         <View style={styles.dividerLine} />
         <Text style={styles.dividerText}>OR</Text>
         <View style={styles.dividerLine} />
       </View>
 
-      {/* Google Sign-In Button */}
-      <TouchableOpacity 
-        style={[styles.googleBtn, busy && styles.btnDisabled]} 
-        onPress={() => promptAsync()}
-        disabled={!request || busy}
+      <TouchableOpacity
+        style={[styles.googleBtn, googleBusy && styles.btnDisabled]}
+        onPress={handleGoogleSignIn}
+        disabled={googleBusy}
       >
-        <Text style={styles.googleIcon}>G</Text>
-        <Text style={styles.googleBtnText}>Continue with Google</Text>
+        {googleBusy ? (
+          <ActivityIndicator />
+        ) : (
+          <>
+            <Image
+              source={{
+                uri: 'https://raw.githubusercontent.com/react-native-google-signin/google-signin/master/img/google.png',
+              }}
+              style={styles.googleIcon}
+            />
+            <Text style={styles.googleBtnText}>Continue with Google</Text>
+          </>
+        )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={handleGuest} style={styles.guestBtn} disabled={busy}>
+      <TouchableOpacity onPress={handleGuest} style={styles.guestBtn} disabled={busy || googleBusy}>
         <Text style={styles.guestText}>Continue as guest</Text>
       </TouchableOpacity>
 
@@ -255,40 +235,35 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: '#fff7e6', padding: 24, justifyContent: 'center' },
   title: { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 3 },
   subtitle: { marginBottom: 18, color: '#555', textAlign: 'center' },
-  input: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#eee' },
+  input: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
   btn: { backgroundColor: '#FFC107', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 6 },
   btnDisabled: { opacity: 0.6 },
-  btnText: { fontWeight: '700' },
-  
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  btnText: { fontWeight: '700', fontSize: 16 },
+  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#ddd' },
   dividerText: { marginHorizontal: 10, color: '#999', fontWeight: '600' },
-  
-  googleBtn: { 
-    backgroundColor: '#fff', 
-    padding: 14, 
-    borderRadius: 12, 
-    alignItems: 'center', 
+  googleBtn: {
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#ddd',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: 8,
   },
-  googleIcon: { 
-    fontSize: 20, 
-    fontWeight: '700', 
-    marginRight: 10,
-    color: '#4285F4' 
-  },
-  googleBtnText: { fontWeight: '600', color: '#333' },
-  
-  guestBtn: { marginTop: 12, alignItems: 'center', paddingVertical: 12 },
+  googleIcon: { width: 20, height: 20, marginRight: 10 },
+  googleBtnText: { fontWeight: '600', fontSize: 16, color: '#555' },
+  guestBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 12 },
   guestText: { fontWeight: '700', fontSize: 16, color: '#F4B400' },
-  footer: { textAlign: 'center', marginTop: 16, color: '#444' },
+  footer: { textAlign: 'center', marginTop: 20, color: '#444' },
   link: { fontWeight: '700', color: '#111' },
 });

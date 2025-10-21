@@ -6,19 +6,23 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ScrollView, 
-  Alert 
+  Alert,
+  ActivityIndicator 
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { menuItems } from '@/data/menuData';
+import { useCart } from '../../context/CartContext';
 
 export default function ItemDetail() {
   const router = useRouter();
   const { itemId } = useLocalSearchParams();
+  const { addItem, isLoading: cartLoading } = useCart();
   
   const item = menuItems.find(i => i.id === itemId);
   const [selectedSize, setSelectedSize] = useState(item?.sizes?.[0] || null);
   const [quantity, setQuantity] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
 
   if (!item) {
     return (
@@ -36,15 +40,58 @@ export default function ItemDetail() {
   const currentPrice = selectedSize ? selectedSize.price : item.price;
   const totalPrice = currentPrice * quantity;
 
-  const handleAddToCart = () => {
-    Alert.alert(
-      'Added to Cart',
-      `${item.name}${selectedSize ? ` (${selectedSize.size})` : ''} x${quantity}`,
-      [
-        { text: 'Continue Shopping', onPress: () => router.back() },
-        { text: 'View Cart', onPress: () => router.push('/cart') },
-      ]
-    );
+  const handleAddToCart = async () => {
+    setIsAdding(true);
+    
+    try {
+      // Create unique ID combining item id and size
+      const uniqueId = `${item.id}-${selectedSize?.size || 'default'}`;
+      
+      console.log('🛍️ Adding to cart:', {
+        id: uniqueId,
+        name: item.name,
+        size: selectedSize?.size,
+        quantity,
+        price: currentPrice
+      });
+
+      addItem({
+        id: uniqueId,
+        name: item.name,
+        price: currentPrice,
+        quantity: quantity,
+        size: selectedSize?.size,
+      });
+
+      // Small delay to ensure state updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      Alert.alert(
+        '✅ Added to Cart',
+        `${item.name}${selectedSize ? ` (${selectedSize.size})` : ''} x${quantity}`,
+        [
+          { 
+            text: 'Continue Shopping', 
+            onPress: () => {
+              setIsAdding(false);
+              router.back();
+            }
+          },
+          { 
+            text: 'View Cart', 
+            onPress: () => {
+              setIsAdding(false);
+              router.push('/(drawer)/(tabs)/cart');
+            }
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('❌ Error adding to cart:', error);
+      Alert.alert('Error', 'Failed to add item to cart. Please try again.');
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   return (
@@ -144,11 +191,21 @@ export default function ItemDetail() {
           <Text style={styles.totalPrice}>${totalPrice.toFixed(2)}</Text>
         </View>
         <TouchableOpacity 
-          style={styles.addToCartButton}
+          style={[
+            styles.addToCartButton,
+            (isAdding || cartLoading) && styles.addToCartButtonDisabled
+          ]}
           onPress={handleAddToCart}
+          disabled={isAdding || cartLoading}
         >
-          <Ionicons name="cart" size={20} color="#FFF" style={styles.cartIcon} />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+          {isAdding ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="cart" size={20} color="#FFF" style={styles.cartIcon} />
+              <Text style={styles.addToCartText}>Add to Cart</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -360,6 +417,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 24,
+  },
+  addToCartButtonDisabled: {
+    opacity: 0.6,
   },
   cartIcon: {
     marginRight: 8,

@@ -1,6 +1,5 @@
-// By Ravneet Kaur
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import {
   View,
@@ -8,69 +7,66 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
+import { useCart } from "../../context/CartContext";
 
 export default function Cart() {
-  // Cart state
-  const [items, setItems] = useState([
-    { id: 1, name: "Fries", price: 6.99, quantity: 1 },
-    { id: 2, name: "Lava Tikki", price: 12.99, quantity: 1 },
-    { id: 3, name: "Choco Lava Cake", price: 9.98, quantity: 2 },
-    {
-      id: 4,
-      name: "Volcanic Pizza",
-      price: 21.99,
-      quantity: 1,
-      details: ["Medium", "Creamy Garlic Dip", "Gluten Free"],
-    },
-    { id: 5, name: "Garlic Bread", price: 15.99, quantity: 1 },
-    { id: 6, name: "Samosa Poutine", price: 8.99, quantity: 1 },
-    { id: 7, name: "Garlic Bread", price: 15.99, quantity: 1 },
-    { id: 8, name: "Samosa Poutine", price: 8.99, quantity: 1 },
-    {
-      id: 9,
-      name: "Volcanic Pizza",
-      price: 21.99,
-      quantity: 1,
-      details: ["Medium", "Creamy Garlic Dip", "Gluten Free"],
-    },
-  ]);
+  const { items, updateQuantity, removeItem, getTotal, isLoading } = useCart();
 
-  // Increase quantity
-  const increaseQty = (id: number) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
-      )
+  const increaseQty = (id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (item) {
+      updateQuantity(id, item.quantity + 1);
+    }
+  };
+
+  const decreaseQty = (id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (item && item.quantity > 1) {
+      updateQuantity(id, item.quantity - 1);
+    }
+  };
+
+  const handleRemove = (id: string, name: string) => {
+    Alert.alert(
+      "Remove Item",
+      `Remove ${name} from cart?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => removeItem(id) },
+      ]
     );
   };
-
-  // Decrease quantity
-  const decreaseQty = (id: number) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id && item.quantity > 1
-          ? { ...item, quantity: item.quantity - 1 }
-          : item
-      )
+  const subtotal = getTotal().toFixed(2);
+  if (isLoading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <ActivityIndicator size="large" color="#FFD700" />
+        <Text style={styles.emptyText}>Loading cart...</Text>
+      </View>
     );
-  };
-
-  // Remove item
-  const removeItem = (id: number) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  // Subtotal
-  const subtotal = items
-    .reduce((sum, item) => sum + item.price * item.quantity, 0)
-    .toFixed(2);
+  }
+  if (items.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="cart-outline" size={64} color="#ccc" />
+        <Text style={styles.emptyText}>Your cart is empty</Text>
+        <TouchableOpacity
+          style={styles.shopButton}
+          onPress={() => router.push("/(drawer)/(tabs)/home")}
+        >
+          <Text style={styles.shopButtonText}>Start Shopping</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-
         <Text style={styles.headerTitle}>My Cart</Text>
         <Text style={styles.itemCount}>{items.length} items</Text>
       </View>
@@ -78,9 +74,10 @@ export default function Cart() {
       {/* Cart Items */}
       <ScrollView style={{ flex: 1 }}>
         {items.map((item) => (
-          <View key={item.id} style={styles.cartItem}>
+          <View key={`${item.id}-${item.size || ''}`} style={styles.cartItem}>
             <View style={{ flex: 1 }}>
               <Text style={styles.itemName}>{item.name}</Text>
+              {item.size && <Text style={styles.itemDetail}>Size: {item.size}</Text>}
               <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
               {item.details &&
                 item.details.map((detail, index) => (
@@ -110,7 +107,7 @@ export default function Cart() {
             </View>
 
             {/* Delete Button */}
-            <TouchableOpacity onPress={() => removeItem(item.id)}>
+            <TouchableOpacity onPress={() => handleRemove(item.id, item.name)}>
               <MaterialIcons name="delete" size={24} color="black" />
             </TouchableOpacity>
           </View>
@@ -137,6 +134,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     padding: 16,
     paddingTop: 40,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  emptyText: {
+    fontSize: 18,
+    color: "#666",
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  shopButton: {
+    backgroundColor: "#FFD700",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  shopButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
   },
   header: {
     flexDirection: "row",
@@ -171,6 +190,7 @@ const styles = StyleSheet.create({
   itemPrice: {
     fontSize: 14,
     marginBottom: 4,
+    marginTop: 4,
   },
   itemDetail: {
     fontSize: 12,
