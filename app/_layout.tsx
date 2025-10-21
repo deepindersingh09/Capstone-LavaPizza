@@ -4,6 +4,8 @@ import { Slot, useRouter, usePathname } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { CartProvider } from './context/CartContext';
+
 
 export default function RootLayout() {
   const router = useRouter();
@@ -66,5 +68,9 @@ export default function RootLayout() {
     return null; // Show nothing while loading
   }
 
-  return <Slot />;
+  return (
+    <CartProvider>
+      <Slot />
+    </CartProvider>
+  );
 }
