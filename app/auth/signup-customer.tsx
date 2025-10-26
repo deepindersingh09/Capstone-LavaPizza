@@ -1,4 +1,4 @@
-// app/auth/signup.tsx
+// app/auth/signup-customer.tsx
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import { Link, useRouter } from 'expo-router';
@@ -8,9 +8,8 @@ import { auth } from '../../lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 
-export default function Signup({ route }: any) {
+export default function SignupCustomer() {
   const router = useRouter();
-  const roleParam = route?.params?.role || 'customer'; // default role
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -44,7 +43,7 @@ export default function Signup({ route }: any) {
         firstName: firstName.trim(),
         lastName: lastName.trim() || '',
         email: email.trim(),
-        role: roleParam,
+        role: 'customer',
         createdAt: new Date().toISOString(),
       };
 
@@ -91,10 +90,8 @@ export default function Signup({ route }: any) {
         resizeMode="contain"
       />
 
-      <Text style={styles.title}>Create Account</Text>
+      <Text style={styles.title}>Create Customer Account</Text>
       <Text style={styles.subtitle}>Get started now!</Text>
-
-      <Text style={styles.roleText}>Role: {roleParam.charAt(0).toUpperCase() + roleParam.slice(1)}</Text>
 
       <TextInput
         placeholder="First Name *"
@@ -180,7 +177,6 @@ const styles = StyleSheet.create({
   logo: { width: 110, height: 110, alignSelf: 'center', marginBottom: 10 },
   title: { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 3 },
   subtitle: { marginBottom: 18, color: '#555', textAlign: 'center' },
-  roleText: { textAlign: 'center', fontWeight: '700', marginBottom: 12, color: '#222' },
   input: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#eee' },
   passwordContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   checkboxRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 8 },

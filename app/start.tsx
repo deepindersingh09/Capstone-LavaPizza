@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, ImageBackground, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, ImageBackground, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -10,9 +10,7 @@ export default function Start() {
 
   const go = async (type: 'delivery' | 'pickup') => {
     try {
-      // Set a flag to indicate this is initial order mode setup
       await AsyncStorage.setItem('@order_mode', type);
-      
       switch (type) {
         case 'delivery':
           router.push('/delivery_address');
@@ -33,37 +31,39 @@ export default function Start() {
   };
 
   return (
-    <ImageBackground
-      source={require('../assets/images/pizza_bg1.png')}
-      style={styles.bg}
-      imageStyle={{ opacity: 0.2 }}
-    >
-      
+ <ImageBackground
+  source={require('../assets/images/pizza_bg1.jpg')}
+  style={styles.bg}
+  imageStyle={{ opacity: 0.2 }}
+>
+
       <View style={styles.top}>
-        <Text style={styles.brand}>LAVA PIZZA</Text>
+        <Image
+          source={require('../assets/images/logo.png')} // replace text with logo
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={styles.tag}>Fuel Your Cravings!</Text>
       </View>
 
-      
       <View style={styles.center}>
         <Text style={styles.title}>Your Pizza Journey starts here!</Text>
 
         <TouchableOpacity
-          style={[styles.choice, { backgroundColor: '#9BE27D' }]}
+          style={[styles.choice, { backgroundColor: '#f0e249ff' }]}
           onPress={() => go('delivery')}
         >
           <Text style={styles.choiceText}>Delivery</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.choice, { backgroundColor: '#FF8C8C' }]}
+          style={[styles.choice, { backgroundColor: '#f8a831ff' }]}
           onPress={() => go('pickup')}
         >
           <Text style={styles.choiceText}>Pickup</Text>
         </TouchableOpacity>
       </View>
 
-    
       <View style={styles.bottomRow}>
         <Pressable
           style={({ pressed }) => [
@@ -80,13 +80,11 @@ export default function Start() {
             styles.bottomBtn,
             { backgroundColor: 'transparent', opacity: pressed ? 0.6 : 1 },
           ]}
-          onPress={() => router.push('/auth/signup')}
+          onPress={() => router.push('/auth/select-role')} // updated signup flow
         >
           <Text style={styles.bottomBtnText}>Sign Up</Text>
         </Pressable>
-
       </View>
-
     </ImageBackground>
   );
 }
@@ -101,17 +99,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 50,
   },
-  brand: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#E53935',
-    letterSpacing: 1,
+  logo: {
+    width: 160,
+    height: 120,
+    marginBottom: 10,
   },
   tag: {
     color: 'black',
     marginTop: 4,
     fontSize: 14,
-    fontWeight: '900'
+    fontWeight: '900',
   },
   center: {
     flex: 1,
@@ -123,6 +120,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     fontWeight: '600',
     color: '#111',
+    textAlign: 'center',
   },
   choice: {
     width: 200,
@@ -160,10 +158,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111',
     fontSize: 16,
-  },
-  logout: {
-    position: 'absolute',
-    right: 16,
-    top: 40,
   },
 });

@@ -1,4 +1,4 @@
-// app/auth/signup.tsx
+// app/auth/signup-delivery.tsx
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import { Link, useRouter } from 'expo-router';
@@ -8,22 +8,23 @@ import { auth } from '../../lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 
-export default function Signup({ route }: any) {
+export default function SignupDelivery() {
   const router = useRouter();
-  const roleParam = route?.params?.role || 'customer'; // default role
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [vehicleType, setVehicleType] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
   const [busy, setBusy] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSignup = async () => {
-    if (!firstName || !email || !password) 
-      return Alert.alert('Missing info', 'Enter first name, email and password');
+    if (!firstName || !email || !password || !vehicleType) 
+      return Alert.alert('Missing info', 'Enter first name, email, password, and vehicle type');
     if (password.length < 6) 
       return Alert.alert('Weak password', 'Use at least 6 characters');
     if (password !== confirm) 
@@ -44,15 +45,15 @@ export default function Signup({ route }: any) {
         firstName: firstName.trim(),
         lastName: lastName.trim() || '',
         email: email.trim(),
-        role: roleParam,
+        role: 'delivery',
+        vehicleType: vehicleType.trim(),
+        vehicleNumber: vehicleNumber.trim() || '',
         createdAt: new Date().toISOString(),
       };
 
       await AsyncStorage.setItem(`@user_${cred.user.uid}`, JSON.stringify(userData));
       await AsyncStorage.setItem('@user_first_name', firstName.trim());
-      if (lastName) {
-        await AsyncStorage.setItem('@user_last_name', lastName.trim());
-      }
+      if (lastName) await AsyncStorage.setItem('@user_last_name', lastName.trim());
 
       await sendEmailVerification(cred.user);
       await signOut(auth);
@@ -66,13 +67,9 @@ export default function Signup({ route }: any) {
     } catch (e: any) {
       let errorMessage = 'Unable to create account';
       
-      if (e.code === 'auth/email-already-in-use') {
-        errorMessage = 'This email is already registered. Please sign in instead.';
-      } else if (e.code === 'auth/invalid-email') {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (e.code === 'auth/weak-password') {
-        errorMessage = 'Password is too weak. Please use a stronger password.';
-      }
+      if (e.code === 'auth/email-already-in-use') errorMessage = 'This email is already registered. Please sign in instead.';
+      else if (e.code === 'auth/invalid-email') errorMessage = 'Please enter a valid email address.';
+      else if (e.code === 'auth/weak-password') errorMessage = 'Password is too weak. Please use a stronger password.';
       
       Alert.alert('Sign up failed', errorMessage);
       console.error('Signup error:', e);
@@ -83,34 +80,24 @@ export default function Signup({ route }: any) {
 
   return (
     <View style={styles.wrap}>
-      
-      {/* Logo */}
       <Image 
         source={require('../../assets/images/logo.png')}
         style={styles.logo}
         resizeMode="contain"
       />
 
-      <Text style={styles.title}>Create Account</Text>
+      <Text style={styles.title}>Create Delivery Agent Account</Text>
       <Text style={styles.subtitle}>Get started now!</Text>
 
-      <Text style={styles.roleText}>Role: {roleParam.charAt(0).toUpperCase() + roleParam.slice(1)}</Text>
-
       <TextInput
-        placeholder="First Name *"
+        placeholder="Enter your name *"
         autoCapitalize="words"
         value={firstName}
         onChangeText={setFirstName}
         style={styles.input}
       />
 
-      <TextInput
-        placeholder="Last Name (optional)"
-        autoCapitalize="words"
-        value={lastName}
-        onChangeText={setLastName}
-        style={styles.input}
-      />
+  
 
       <TextInput
         placeholder="Email address"
@@ -121,7 +108,7 @@ export default function Signup({ route }: any) {
         style={styles.input}
       />
 
-      {/* Password Field */}
+      {/* Password */}
       <View style={styles.passwordContainer}>
         <TextInput
           placeholder="Password"
@@ -140,32 +127,21 @@ export default function Signup({ route }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Confirm Password Field */}
-      <View style={styles.passwordContainer}>
-        <TextInput
-          placeholder="Confirm Password"
-          secureTextEntry={!showConfirmPassword}
-          value={confirm}
-          onChangeText={setConfirm}
-          style={[styles.input, { flex: 1, marginBottom: 0 }]}
-        />
-        <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-          <Ionicons
-            name={showConfirmPassword ? 'eye-off' : 'eye'}
-            size={22}
-            color="#555"
-            style={{ marginLeft: -35 }}
-          />
-        </TouchableOpacity>
-      </View>
+  
 
-      <TouchableOpacity onPress={() => setAgreed(!agreed)} style={styles.checkboxRow}>
-        <View style={[styles.checkbox, agreed && { backgroundColor: '#222' }]} />
-        <Text style={{ marginLeft: 8 }}>I agree to Terms & Privacy Policy</Text>
-      </TouchableOpacity>
+      {/* Vehicle Type */}
+      <TextInput
+        placeholder="Vehicle Type *"
+        value={vehicleType}
+        onChangeText={setVehicleType}
+        style={styles.input}
+      />
+
+     
+
 
       <TouchableOpacity style={styles.btn} onPress={handleSignup} disabled={busy}>
-        <Text style={styles.btnText}>{busy ? 'Signing up…' : 'Sign Up'}</Text>
+        <Text style={styles.btnText}>{busy ? 'Generating next' : 'Continue'}</Text>
       </TouchableOpacity>
 
       <Text style={styles.footer}>
@@ -180,7 +156,6 @@ const styles = StyleSheet.create({
   logo: { width: 110, height: 110, alignSelf: 'center', marginBottom: 10 },
   title: { fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: 3 },
   subtitle: { marginBottom: 18, color: '#555', textAlign: 'center' },
-  roleText: { textAlign: 'center', fontWeight: '700', marginBottom: 12, color: '#222' },
   input: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#eee' },
   passwordContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   checkboxRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 8 },
