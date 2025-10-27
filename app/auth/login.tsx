@@ -1,9 +1,8 @@
-// app/auth/login.tsx — Google Sign-In (google-signin library) + Email/Password
-import React, { useEffect, useState } from 'react';
+// app/auth/login.tsx — Email/Password only (Google Sign-In removed)
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -12,99 +11,18 @@ import {
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import {
-  GoogleAuthProvider,
-  signInWithCredential,
   sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  GoogleSignin,
-  statusCodes,
-  User as GoogleUser,
-} from '@react-native-google-signin/google-signin';
 import { auth } from '../../lib/firebase';
-import * as WebBrowser from 'expo-web-browser';
-
-
-WebBrowser.maybeCompleteAuthSession();
 
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [googleBusy, setGoogleBusy] = useState(false);
-
-  useEffect(() => {
-    GoogleSignin.configure({
-      webClientId:
-        '898725473422-h5o07rea27deqfs5lhv05fitdk8qr38c.apps.googleusercontent.com',
-      offlineAccess: true,
-      forceCodeForRefreshToken: false,
-    });
-    console.log('🔧 Google Sign-In configured');
-  }, []);
-
-  // ---- GOOGLE SIGN-IN -> FIREBASE ----
-  const handleGoogleSignIn = async () => {
-    try {
-      setGoogleBusy(true);
-
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-
-      // ⬇️ Force the correct return type to avoid Expo's SignInResponse bleed-through
-      const result = (await GoogleSignin.signIn()) as unknown as GoogleUser;
-      console.log('✅ Google account:', result?.user?.email);
-
-      const idToken =
-        result.idToken ?? (await GoogleSignin.getTokens()).idToken;
-      if (!idToken) throw new Error('No ID token returned from Google Sign-In');
-
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCred = await signInWithCredential(auth, credential);
-
-      const u = userCred.user;
-      const name = (u.displayName || '').trim();
-      const [firstName, ...rest] = name.split(' ');
-      const lastName = rest.join(' ');
-
-      const userData = {
-        uid: u.uid,
-        firstName: firstName || '',
-        lastName: lastName || '',
-        email: u.email || '',
-        createdAt: new Date().toISOString(),
-      };
-      await AsyncStorage.setItem(`@user_${u.uid}`, JSON.stringify(userData));
-      if (firstName) await AsyncStorage.setItem('@user_first_name', firstName);
-      if (lastName) await AsyncStorage.setItem('@user_last_name', lastName);
-      await AsyncStorage.removeItem('@guest_mode');
-      await AsyncStorage.removeItem('@order_mode');
-
-      Alert.alert('Welcome!', `Hi ${firstName || 'there'}! 🍕`);
-      router.replace('/start');
-    } catch (err: any) {
-      console.error('❌ Google Sign-In error:', err);
-      if (err?.code === statusCodes.SIGN_IN_CANCELLED) {
-        Alert.alert('Cancelled', 'Google Sign-In was cancelled');
-      } else if (err?.code === statusCodes.IN_PROGRESS) {
-        Alert.alert('Please wait', 'Sign-In already in progress');
-      } else if (err?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Play Services', 'Google Play Services is not available or outdated');
-      } else if (err?.code === '10' || String(err?.message).includes('DEVELOPER_ERROR')) {
-        Alert.alert(
-          'Developer error (code 10)',
-          'Fix the Android OAuth client: package must be com.techtitans.lavapizza and SHA-1 must match your build keystore.'
-        );
-      } else {
-        Alert.alert('Error', err?.message || 'Failed to sign in with Google');
-      }
-    } finally {
-      setGoogleBusy(false);
-    }
-  };
 
   // ---- EMAIL / PASSWORD ----
   const handleLogin = async () => {
@@ -196,33 +114,7 @@ export default function Login() {
         {busy ? <ActivityIndicator /> : <Text style={styles.btnText}>Sign In</Text>}
       </TouchableOpacity>
 
-      <View style={styles.dividerContainer}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.dividerLine} />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.googleBtn, googleBusy && styles.btnDisabled]}
-        onPress={handleGoogleSignIn}
-        disabled={googleBusy}
-      >
-        {googleBusy ? (
-          <ActivityIndicator />
-        ) : (
-          <>
-            <Image
-              source={{
-                uri: 'https://raw.githubusercontent.com/react-native-google-signin/google-signin/master/img/google.png',
-              }}
-              style={styles.googleIcon}
-            />
-            <Text style={styles.googleBtnText}>Continue with Google</Text>
-          </>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={handleGuest} style={styles.guestBtn} disabled={busy || googleBusy}>
+      <TouchableOpacity onPress={handleGuest} style={styles.guestBtn} disabled={busy}>
         <Text style={styles.guestText}>Continue as guest</Text>
       </TouchableOpacity>
 
@@ -248,22 +140,6 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: '#FFC107', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 6 },
   btnDisabled: { opacity: 0.6 },
   btnText: { fontWeight: '700', fontSize: 16 },
-  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#ddd' },
-  dividerText: { marginHorizontal: 10, color: '#999', fontWeight: '600' },
-  googleBtn: {
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginBottom: 8,
-  },
-  googleIcon: { width: 20, height: 20, marginRight: 10 },
-  googleBtnText: { fontWeight: '600', fontSize: 16, color: '#555' },
   guestBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 12 },
   guestText: { fontWeight: '700', fontSize: 16, color: '#F4B400' },
   footer: { textAlign: 'center', marginTop: 20, color: '#444' },
