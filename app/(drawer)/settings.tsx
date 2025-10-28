@@ -63,7 +63,7 @@ export default function Settings() {
       {/* Account */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Account</Text>
-        <Link href="/profile" asChild>
+        <Link href="/(drawer)/(tabs)/settings/profile-details" asChild>
           <Pressable style={styles.itemRow}>
             <Text style={styles.itemText}>Profile & Details</Text>
             <Ionicons name="chevron-forward" size={18} />
@@ -151,13 +151,13 @@ export default function Settings() {
             <Ionicons name="chevron-forward" size={18} />
           </Pressable>
         </Link>
-        <Link href="/policy/privacy" asChild>
+        <Link href="../privacy" asChild>
           <Pressable style={styles.itemRow}>
             <Text style={styles.itemText}>Privacy Policy</Text>
             <Ionicons name="chevron-forward" size={18} />
           </Pressable>
         </Link>
-        <Link href="/policy/terms" asChild>
+        <Link href="../policy" asChild>
           <Pressable style={styles.itemRow}>
             <Text style={styles.itemText}>Terms of Service</Text>
             <Ionicons name="chevron-forward" size={18} />

@@ -18,6 +18,13 @@ export default function Wallet() {
   const router = useRouter();
   const [cards, setCards] = useState<CardItem[]>([]);
 
+  const onBack = () => {
+    if ((router as any).canGoBack?.()) router.back();
+    else router.replace("./(drawer)");
+  };
+<TouchableOpacity onPress={onBack}>
+    <Ionicons name="arrow-back" size={24} color="#111" />
+  </TouchableOpacity>
   useEffect(() => {
     (async () => {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -71,7 +78,7 @@ export default function Wallet() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left','right','bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top','left','right','bottom']}>
       
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
