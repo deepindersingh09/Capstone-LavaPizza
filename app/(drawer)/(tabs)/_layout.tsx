@@ -71,6 +71,9 @@ export default function TabsLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="settings/profile-details" options={{ href: null }} />
+
     </Tabs>
   );
 }

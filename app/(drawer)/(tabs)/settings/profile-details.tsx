@@ -12,7 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 
 const K = {
   firstName: '@user_first_name',
@@ -24,6 +24,8 @@ const K = {
 export default function ProfileDetails() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const navigation = useNavigation<any>();
+
 
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
@@ -31,7 +33,14 @@ export default function ProfileDetails() {
   const [phone,     setPhone]     = useState('');
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
-
+const goBackToSettings = () => {
+  // If we actually came from Settings in this session, just go back.
+  if (navigation.canGoBack?.()) {
+    navigation.goBack();
+    return;
+  }
+    router.replace('/(drawer)/settings');
+  };
   useEffect(() => {
     (async () => {
       try {
@@ -97,7 +106,7 @@ export default function ProfileDetails() {
     <SafeAreaView style={styles.safe} edges={['left','right','bottom']}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={goBackToSettings}>
           <Ionicons name="arrow-back" size={24} color="#111" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile & Details</Text>
