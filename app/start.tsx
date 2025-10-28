@@ -1,8 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, ImageBackground, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, ImageBackground, Image, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Start() {
@@ -11,79 +9,61 @@ export default function Start() {
   const go = async (type: 'delivery' | 'pickup') => {
     try {
       await AsyncStorage.setItem('@order_mode', type);
-      switch (type) {
-        case 'delivery':
-          router.push('/delivery_address');
-          break;
-        case 'pickup':
-          router.push('/pickup_location');  
-          break;
-      }
+      router.push(type === 'delivery' ? '/delivery_address' : '/pickup_location');
     } catch (e) {
-      console.warn('Failed to set order mode', e);
       Alert.alert('Error', 'Something went wrong. Please try again.');
     }
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.replace('/auth/login');
-  };
-
   return (
- <ImageBackground
-  source={require('../assets/images/pizza_bg1.jpg')}
-  style={styles.bg}
-  imageStyle={{ opacity: 0.2 }}
->
+    <ImageBackground
+      source={require('../assets/images/pizza_bg1.jpg')}
+      style={styles.bg}
+      imageStyle={{ opacity: 0.35 }} // ✅ Improved visibility
+    >
+      {/* ✅ Dark overlay for better contrast */}
+      <View style={styles.overlay} />
 
-      <View style={styles.top}>
-        <Image
-          source={require('../assets/images/logo.png')} // replace text with logo
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.tag}>Fuel Your Cravings!</Text>
-      </View>
+      <View style={styles.content}>
+        {/* Top Logo Section */}
+        <View style={styles.top}>
+          <Image
+            source={require('../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.tag}>Fuel Your Cravings 🍕</Text>
+        </View>
 
-      <View style={styles.center}>
-        <Text style={styles.title}>Your Pizza Journey starts here!</Text>
+        {/* Middle CTA Section */}
+        <View style={styles.center}>
+          <Text style={styles.title}>Your Pizza Journey Starts Now!</Text>
 
-        <TouchableOpacity
-          style={[styles.choice, { backgroundColor: '#f0e249ff' }]}
-          onPress={() => go('delivery')}
-        >
-          <Text style={styles.choiceText}>Delivery</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.choice, styles.delivery]}
+            onPress={() => go('delivery')}
+          >
+            <Text style={styles.choiceText}>Delivery</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.choice, { backgroundColor: '#f8a831ff' }]}
-          onPress={() => go('pickup')}
-        >
-          <Text style={styles.choiceText}>Pickup</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.choice, styles.pickup]}
+            onPress={() => go('pickup')}
+          >
+            <Text style={styles.choiceText}>Pickup</Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.bottomRow}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.bottomBtn,
-            { backgroundColor: 'transparent', opacity: pressed ? 0.6 : 1 }, 
-          ]}
-          onPress={() => router.push('/auth/login')}
-        >
-          <Text style={styles.bottomBtnText}>Log In</Text>
-        </Pressable>
+        {/* Bottom Auth Buttons */}
+        <View style={styles.bottomRow}>
+          <Pressable onPress={() => router.push('/auth/login')} style={styles.bottomBtn}>
+            <Text style={styles.bottomBtnText}>Log In</Text>
+          </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.bottomBtn,
-            { backgroundColor: 'transparent', opacity: pressed ? 0.6 : 1 },
-          ]}
-          onPress={() => router.push('/auth/select-role')} // updated signup flow
-        >
-          <Text style={styles.bottomBtnText}>Sign Up</Text>
-        </Pressable>
+          <Pressable onPress={() => router.push('/auth/select-role')} style={styles.bottomBtn}>
+            <Text style={styles.bottomBtnText}>Sign Up</Text>
+          </Pressable>
+        </View>
       </View>
     </ImageBackground>
   );
@@ -92,23 +72,30 @@ export default function Start() {
 const styles = StyleSheet.create({
   bg: {
     flex: 1,
-    resizeMode: 'cover',
-    padding: 24,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.10)', // ✅ Light dark overlay
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 26,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    paddingBottom: 40,
   },
   top: {
     alignItems: 'center',
-    marginTop: 50,
-  },
-  logo: {
-    width: 160,
-    height: 120,
     marginBottom: 10,
   },
+  logo: {
+    width: 200,
+    height: 130,
+  },
   tag: {
-    color: 'black',
-    marginTop: 4,
-    fontSize: 14,
-    fontWeight: '900',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginTop: 8,
   },
   center: {
     flex: 1,
@@ -116,47 +103,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 18,
-    marginBottom: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#111',
     textAlign: 'center',
+    marginBottom: 28,
   },
   choice: {
-    width: 200,
-    paddingVertical: 14,
-    borderRadius: 10,
+    width: '80%',
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    marginVertical: 6,
+    marginVertical: 10,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.18, // ✅ Softer shadow
     shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  delivery: {
+    backgroundColor: '#f0e249',
+  },
+  pickup: {
+    backgroundColor: '#f8a831',
   },
   choiceText: {
-    fontWeight: '800',
-    fontSize: 16,
+    fontWeight: '900',
+    fontSize: 18,
     color: '#111',
   },
   bottomRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 20,
-    marginBottom: 45,
+    gap: 30,
+    marginTop: 10,
   },
   bottomBtn: {
-    paddingHorizontal: 18,
+    borderWidth: 2,
+    borderColor: '#111',
     paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderColor: '#aaa',
-    borderWidth: 1,
-    backgroundColor: 'transparent', 
+    paddingHorizontal: 20,
+    borderRadius: 14,
   },
   bottomBtnText: {
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#111',
-    fontSize: 16,
   },
 });
