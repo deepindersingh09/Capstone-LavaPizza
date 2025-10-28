@@ -1,145 +1,382 @@
-import { router } from "expo-router";
-import React, { useState } from "react";
+// app/auth/signup-customer.tsx - DEBUGGED VERSION
+import { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
+  Alert,
+  Image,
+  ActivityIndicator,
   ScrollView,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+} from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signOut,
+  updateProfile,
+} from 'firebase/auth';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../../lib/firebase';
+import React from 'react';
 
-export default function Signup() {
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function SignupCustomer() {
+  const router = useRouter();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleSignup = () => {
-    if (!fullName || !email || !password) {
-      alert("Please fill all fields");
+  const handleSignup = async () => {
+    console.log('🔵 Signup attempt started');
+    console.log('Email:', email);
+    console.log('Auth object:', auth ? 'Exists' : 'NULL');
+
+    // Validation
+    if (!firstName || !email || !password) {
+      Alert.alert('Missing Info', 'Enter all required fields (First Name, Email, Password)');
       return;
     }
-    console.log("Signup Data:", { fullName, email, password });
-    router.push("/auth/login");
+
+    if (password.length < 6) {
+      Alert.alert('Weak Password', 'Password must be at least 6 characters.');
+      return;
+    }
+
+    if (password !== confirm) {
+      Alert.alert('Password Mismatch', 'Passwords do not match.');
+      return;
+    }
+
+    if (!agreed) {
+      Alert.alert('Terms Required', 'Please agree to Terms & Privacy Policy.');
+      return;
+    }
+
+    // Check Firebase auth
+    if (!auth) {
+      Alert.alert(
+        'Configuration Error',
+        'Firebase Auth is not initialized. Please check Firebase configuration.'
+      );
+      console.error('❌ Firebase auth is null');
+      return;
+    }
+
+    setBusy(true);
+
+    try {
+      console.log('🟡 Creating Firebase account...');
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      console.log('✅ Account created!', cred.user.email);
+
+      // Update display name
+      console.log('🟡 Updating profile...');
+      await updateProfile(cred.user, {
+        displayName: firstName.trim(),
+      });
+      console.log('✅ Profile updated');
+
+      // Save user data to AsyncStorage
+      const userData = {
+        uid: cred.user.uid,
+        firstName: firstName.trim(),
+        lastName: lastName.trim() || '',
+        email: email.trim(),
+        createdAt: new Date().toISOString(),
+        role: 'customer',
+      };
+
+      await AsyncStorage.setItem(`@user_${cred.user.uid}`, JSON.stringify(userData));
+      await AsyncStorage.setItem('@user_first_name', firstName.trim());
+      console.log('✅ User data saved');
+
+      // Send verification email
+      console.log('🟡 Sending verification email...');
+      await sendEmailVerification(cred.user);
+      console.log('✅ Verification email sent');
+
+      // Sign out until email is verified
+      await signOut(auth);
+      console.log('✅ Signed out for email verification');
+
+      Alert.alert(
+        'Verify Your Email ✅',
+        `We sent a verification link to ${email}. Please check your inbox and verify your email before signing in.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/auth/login'),
+          },
+        ]
+      );
+    } catch (err: any) {
+      console.error('❌ Signup error:', err);
+      console.error('Error code:', err.code);
+      console.error('Error message:', err.message);
+
+      let errorMessage = 'Signup failed. Please try again.';
+
+      if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already registered. Please sign in instead.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email format. Please check your email.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Use at least 6 characters.';
+      } else if (err.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        errorMessage =
+          'Email/Password authentication is not enabled. Please enable it in Firebase Console.';
+      } else if (err.message) {
+        errorMessage = `Error: ${err.message}`;
+      }
+
+      Alert.alert('Signup Failed', errorMessage + '\n\nCheck console for details.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* 🔙 Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={26} color="#000" />
-        </TouchableOpacity>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Image source={require('../../assets/images/logo.png')} style={styles.logo} />
 
-        <Text style={styles.title}>Create Account</Text>
+      <Text style={styles.heading}>Create an Account</Text>
+      <Text style={styles.subtext}>Customer Registration</Text>
 
-        {/* Input Fields */}
+      <TextInput
+        style={styles.input}
+        placeholder="First Name *"
+        placeholderTextColor="#999"
+        value={firstName}
+        onChangeText={setFirstName}
+        editable={!busy}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Last Name (Optional)"
+        placeholderTextColor="#999"
+        value={lastName}
+        onChangeText={setLastName}
+        editable={!busy}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Email Address *"
+        placeholderTextColor="#999"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+        editable={!busy}
+      />
+
+      {/* Password */}
+      <View style={styles.inputIconWrap}>
         <TextInput
-          style={styles.input}
-          placeholder="Full Name *"
-          placeholderTextColor="#6b6b6b"
-          value={fullName}
-          onChangeText={setFullName}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email Address *"
-          placeholderTextColor="#6b6b6b"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        <TextInput
-          style={styles.input}
           placeholder="Password *"
-          placeholderTextColor="#6b6b6b"
-          secureTextEntry
+          placeholderTextColor="#999"
+          secureTextEntry={!showPassword}
+          style={styles.inputFlex}
           value={password}
           onChangeText={setPassword}
+          editable={!busy}
         />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+          <Ionicons
+            name={showPassword ? 'eye-off' : 'eye'}
+            size={22}
+            color="#444"
+          />
+        </TouchableOpacity>
+      </View>
 
-        {/* CTA Button */}
-        <TouchableOpacity style={styles.button} onPress={handleSignup}>
+      {/* Confirm Password */}
+      <View style={styles.inputIconWrap}>
+        <TextInput
+          placeholder="Confirm Password *"
+          placeholderTextColor="#999"
+          secureTextEntry={!showConfirmPassword}
+          style={styles.inputFlex}
+          value={confirm}
+          onChangeText={setConfirm}
+          editable={!busy}
+        />
+        <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+          <Ionicons
+            name={showConfirmPassword ? 'eye-off' : 'eye'}
+            size={22}
+            color="#444"
+          />
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        onPress={() => setAgreed(!agreed)}
+        style={styles.checkRow}
+        disabled={busy}
+      >
+        <View style={[styles.checkbox, agreed && styles.checkboxActive]}>
+          {agreed && <Ionicons name="checkmark" size={14} color="#222" />}
+        </View>
+        <Text style={styles.checkLabel}>I agree to Terms & Privacy Policy</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.button, busy && styles.buttonDisabled]}
+        disabled={busy}
+        onPress={handleSignup}
+      >
+        {busy ? (
+          <ActivityIndicator color="#222" />
+        ) : (
           <Text style={styles.buttonText}>Sign Up</Text>
-        </TouchableOpacity>
+        )}
+      </TouchableOpacity>
 
-        {/* Switch to Login */}
-        <TouchableOpacity onPress={() => router.push("/auth/login")}>
-          <Text style={styles.switchText}>
-            Already have an account? <Text style={styles.loginText}>Sign In</Text>
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Text style={styles.signInText}>
+        Already registered?{' '}
+        <Link href="/auth/login" style={styles.signInLink}>
+          Sign in
+        </Link>
+      </Text>
+
+      {/* Debug Info */}
+      <View style={styles.debugBox}>
+        <Text style={styles.debugText}>
+          🔍 Debug: Check console for detailed logs
+        </Text>
+        <Text style={styles.debugText}>
+          Firebase Auth: {auth ? '✅ Connected' : '❌ Not Connected'}
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#F7F0D9",
+    flexGrow: 1,
+    backgroundColor: '#fffaf0',
+    padding: 24,
+    paddingTop: 60,
   },
-  scrollContainer: {
-    paddingTop: 80,
-    paddingBottom: 40,
-    paddingHorizontal: 22,
+  logo: {
+    width: 115,
+    height: 115,
+    alignSelf: 'center',
+    marginBottom: 14,
   },
-  backButton: {
-    position: "absolute",
-    top: 28,
-    left: 18,
-    zIndex: 100,
+  heading: {
+    fontSize: 26,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 4,
+    color: '#f8a831',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "900",
-    marginBottom: 35,
-    textAlign: "center",
-    color: "#222",
+  subtext: {
+    color: '#555',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingHorizontal: 15,
-    paddingVertical: 14,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#ffe38f',
+    marginBottom: 14,
     fontSize: 16,
-    color: "#1a1a1a",
-    marginBottom: 18,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
+    color: '#111',
+  },
+  inputIconWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ffe38f',
+    borderRadius: 12,
+    paddingRight: 12,
+    marginBottom: 14,
+  },
+  inputFlex: {
+    flex: 1,
+    padding: 14,
+    fontSize: 16,
+    color: '#111',
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#aaa',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: '#f8a831',
+    borderColor: '#f8a831',
+  },
+  checkLabel: {
+    marginLeft: 10,
+    color: '#444',
+    fontSize: 14,
   },
   button: {
-    backgroundColor: "#F0E249",
-    paddingVertical: 15,
+    backgroundColor: '#f8a831ff',
+    padding: 16,
     borderRadius: 14,
-    alignItems: "center",
-    marginTop: 15,
-    elevation: 3,
+    alignItems: 'center',
+    marginTop: 4,
+    height: 54,
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#222",
+    fontWeight: '700',
+    fontSize: 16,
+    color: '#222',
   },
-  switchText: {
-    textAlign: "center",
+  signInText: {
+    textAlign: 'center',
     marginTop: 18,
-    fontSize: 15,
-    color: "#222",
+    color: '#444',
+    fontSize: 14,
   },
-  loginText: {
-    fontWeight: "900",
-    color: "#000",
+  signInLink: {
+    fontWeight: '700',
+    color: '#d47b00',
+  },
+  debugBox: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
   },
 });
