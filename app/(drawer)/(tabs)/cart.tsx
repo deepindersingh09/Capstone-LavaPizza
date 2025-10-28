@@ -1,17 +1,9 @@
-// By Ravneet Kaur
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { MaterialIcons, Ionicons } from "@expo/vector-icons";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 
 export default function Cart() {
-  // Cart state
   const [items, setItems] = useState([
     { id: 1, name: "Fries", price: 6.99, quantity: 1 },
     { id: 2, name: "Lava Tikki", price: 12.99, quantity: 1 },
@@ -23,54 +15,32 @@ export default function Cart() {
       quantity: 1,
       details: ["Medium", "Creamy Garlic Dip", "Gluten Free"],
     },
-    { id: 5, name: "Garlic Bread", price: 15.99, quantity: 1 },
-    { id: 6, name: "Samosa Poutine", price: 8.99, quantity: 1 },
-    { id: 7, name: "Garlic Bread", price: 15.99, quantity: 1 },
-    { id: 8, name: "Samosa Poutine", price: 8.99, quantity: 1 },
-    {
-      id: 9,
-      name: "Volcanic Pizza",
-      price: 21.99,
-      quantity: 1,
-      details: ["Medium", "Creamy Garlic Dip", "Gluten Free"],
-    },
   ]);
 
-  // Increase quantity
   const increaseQty = (id: number) => {
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
-      )
+      prev.map((item) => (item.id === id ? { ...item, quantity: item.quantity + 1 } : item))
     );
   };
 
-  // Decrease quantity
   const decreaseQty = (id: number) => {
     setItems((prev) =>
       prev.map((item) =>
-        item.id === id && item.quantity > 1
-          ? { ...item, quantity: item.quantity - 1 }
-          : item
+        item.id === id && item.quantity > 1 ? { ...item, quantity: item.quantity - 1 } : item
       )
     );
   };
 
-  // Remove item
   const removeItem = (id: number) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Subtotal
-  const subtotal = items
-    .reduce((sum, item) => sum + item.price * item.quantity, 0)
-    .toFixed(2);
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2);
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-
         <Text style={styles.headerTitle}>My Cart</Text>
         <Text style={styles.itemCount}>{items.length} items</Text>
       </View>
@@ -92,26 +62,20 @@ export default function Cart() {
 
             {/* Quantity Controls */}
             <View style={styles.qtyContainer}>
-              <TouchableOpacity
-                style={styles.qtyButton}
-                onPress={() => increaseQty(item.id)}
-              >
+              <TouchableOpacity style={styles.qtyButton} onPress={() => increaseQty(item.id)}>
                 <Text style={styles.qtyText}>+</Text>
               </TouchableOpacity>
 
               <Text style={styles.qtyValue}>{item.quantity}</Text>
 
-              <TouchableOpacity
-                style={styles.qtyButton}
-                onPress={() => decreaseQty(item.id)}
-              >
+              <TouchableOpacity style={styles.qtyButton} onPress={() => decreaseQty(item.id)}>
                 <Text style={styles.qtyText}>-</Text>
               </TouchableOpacity>
             </View>
 
             {/* Delete Button */}
             <TouchableOpacity onPress={() => removeItem(item.id)}>
-              <MaterialIcons name="delete" size={24} color="black" />
+              <MaterialIcons name="delete" size={24} color="#d32f2f" />
             </TouchableOpacity>
           </View>
         ))}
@@ -120,10 +84,7 @@ export default function Cart() {
       {/* Subtotal + Checkout */}
       <View style={styles.footer}>
         <Text style={styles.subtotal}>Subtotal: ${subtotal}</Text>
-        <TouchableOpacity
-          style={styles.checkoutButton}
-          onPress={() => router.push("/checkout")}
-        >
+        <TouchableOpacity style={styles.checkoutButton} onPress={() => router.push("/checkout")}>
           <Text style={styles.checkoutText}>Checkout</Text>
         </TouchableOpacity>
       </View>
@@ -134,7 +95,7 @@ export default function Cart() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#fff8f0", // soft light-orange background
     padding: 16,
     paddingTop: 40,
   },
@@ -142,39 +103,43 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 40,
+    marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "bold",
+    color: "#fcac2bff",
   },
   itemCount: {
     fontSize: 14,
-    color: "gray",
+    color: "#555",
   },
   cartItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fdf6e3",
+    backgroundColor: "#fff",
     padding: 12,
     marginBottom: 12,
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    borderRadius: 12,
+    shadowColor: "#f8a831", // orange shadow
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   itemName: {
     fontSize: 16,
     fontWeight: "bold",
+    color: "#222",
   },
   itemPrice: {
     fontSize: 14,
     marginBottom: 4,
+    color: "#5D4037",
   },
   itemDetail: {
     fontSize: 12,
-    color: "gray",
+    color: "#777",
   },
   qtyContainer: {
     flexDirection: "row",
@@ -182,18 +147,21 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   qtyButton: {
-    backgroundColor: "#FFD700",
+    backgroundColor: "#f8a831",
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   qtyText: {
     fontSize: 16,
     fontWeight: "bold",
+    color: "#fff",
   },
   qtyValue: {
     marginHorizontal: 8,
     fontSize: 16,
+    fontWeight: "600",
+    color: "#222",
   },
   footer: {
     paddingVertical: 12,
@@ -202,19 +170,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   subtotal: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
     marginBottom: 8,
+    color: "#5D4037",
   },
   checkoutButton: {
-    backgroundColor: "#FFD700",
-    padding: 12,
-    borderRadius: 6,
+    backgroundColor: "#fc7915ff",
+    padding: 14,
+    borderRadius: 8,
     width: "100%",
     alignItems: "center",
   },
   checkoutText: {
     fontSize: 16,
     fontWeight: "bold",
+    color: "#fff",
   },
 });
