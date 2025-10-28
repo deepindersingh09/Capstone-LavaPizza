@@ -79,12 +79,11 @@ export default function SpecialsScreen() {
   const [selectedSize, setSelectedSize] = useState(SIZES[1]);
   const [quantity, setQuantity] = useState(1);
 
-  // Handle crust selection - Navigate to custom builder
+  // Navigate to custom builder with chosen crust
   const handleCrustClick = (crustId: string) => {
     router.push(`/pizza/custom-builder?crust=${crustId}`);
   };
 
-  // Handle pizza card click
   const handlePizzaClick = (pizza: Pizza) => {
     setSelectedPizza(pizza);
     setModalVisible(true);
@@ -98,11 +97,9 @@ export default function SpecialsScreen() {
       Alert.alert('Error', 'Please select a size before adding to cart');
       return;
     }
-
     const totalPrice = selectedSize.price * quantity;
 
     try {
-      // Create cart item
       const cartItem = {
         id: `${selectedPizza.id}-${Date.now()}`,
         name: selectedPizza.name,
@@ -113,14 +110,9 @@ export default function SpecialsScreen() {
         type: 'special',
       };
 
-      // Get existing cart
       const cartData = await AsyncStorage.getItem('@cart');
       const cart = cartData ? JSON.parse(cartData) : [];
-
-      // Add new item
       cart.push(cartItem);
-
-      // Save cart
       await AsyncStorage.setItem('@cart', JSON.stringify(cart));
 
       Alert.alert(
@@ -134,7 +126,7 @@ export default function SpecialsScreen() {
               setModalVisible(false);
               try {
                 router.push('/(drawer)/(tabs)/cart');
-              } catch (e) {
+              } catch {
                 router.push('/cart');
               }
             }
@@ -147,12 +139,10 @@ export default function SpecialsScreen() {
     }
   };
   
-  // Calculate total price
   const totalPrice = selectedSize ? selectedSize.price * quantity : 0;
 
   const ListHeader = () => (
     <View style={styles.headerArea}>
-      {/* Crust Selection - CLICKABLE */}
       <Text style={styles.sectionTitle}>Create your own Pizza</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.crustRow}>
         {crustOptions.map((item) => (
@@ -160,7 +150,7 @@ export default function SpecialsScreen() {
             key={item.id}
             style={styles.crustItem}
             onPress={() => handleCrustClick(item.id)}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             <Image source={item.image} style={styles.crustImage} />
             <Text style={styles.crustLabel}>{item.name}</Text>
@@ -173,7 +163,7 @@ export default function SpecialsScreen() {
   );
 
   const renderItem = ({ item }: { item: Pizza }) => (
-    <TouchableOpacity activeOpacity={0.7} style={styles.pizzaItem} onPress={() => handlePizzaClick(item)}>
+    <TouchableOpacity activeOpacity={0.85} style={styles.pizzaItem} onPress={() => handlePizzaClick(item)}>
       <Image source={item.image} style={styles.pizzaImage} />
       <View style={styles.pizzaInfo}>
         <Text style={styles.pizzaName}>{item.name}</Text>
@@ -190,7 +180,7 @@ export default function SpecialsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListHeaderComponent={ListHeader}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -200,7 +190,7 @@ export default function SpecialsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
-              <Ionicons name="close" size={26} color="#333" />
+              <Ionicons name="close" size={26} color="#1A1A1A" />
             </TouchableOpacity>
 
             {selectedPizza && (
@@ -213,53 +203,63 @@ export default function SpecialsScreen() {
                 {/* Size */}
                 <Text style={styles.modalSectionTitle}>Select Size</Text>
                 <View style={styles.sizeOptions}>
-                  {SIZES.map((size) => (
-                    <TouchableOpacity
-                      key={size.size}
-                      style={[styles.sizeButton, selectedSize.size === size.size && styles.sizeButtonActive]}
-                      onPress={() => setSelectedSize(size)}
-                    >
-                      <Text style={styles.sizeText}>{size.size}</Text>
-                      <Text style={styles.sizePrice}>${size.price.toFixed(2)}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {SIZES.map((size) => {
+                    const active = selectedSize.size === size.size;
+                    return (
+                      <TouchableOpacity
+                        key={size.size}
+                        style={[styles.sizeButton, active && styles.sizeButtonActive]}
+                        onPress={() => setSelectedSize(size)}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={[styles.sizeText, active && styles.sizeTextActive]}>{size.size}</Text>
+                        <Text style={[styles.sizePrice, active && styles.sizePriceActive]}>
+                          ${size.price.toFixed(2)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
 
                 {/* Crust */}
                 <Text style={styles.modalSectionTitle}>Select Crust</Text>
                 <View style={styles.crustOptionsContainer}>
-                  {crustOptions.map((crust) => (
-                    <TouchableOpacity
-                      key={crust.id}
-                      style={[styles.crustOption, selectedCrust === crust.id && styles.crustOptionSelected]}
-                      onPress={() => setSelectedCrust(crust.id)}
-                    >
-                      <Text style={[styles.crustText, selectedCrust === crust.id && styles.crustTextSelected]}>
-                        {crust.name}
-                      </Text>
-                      {selectedCrust === crust.id && (
-                        <Ionicons name="checkmark-circle" size={20} color="#E53935" />
-                      )}
-                    </TouchableOpacity>
-                  ))}
+                  {crustOptions.map((crust) => {
+                    const active = selectedCrust === crust.id;
+                    return (
+                      <TouchableOpacity
+                        key={crust.id}
+                        style={[styles.crustOption, active && styles.crustOptionSelected]}
+                        onPress={() => setSelectedCrust(crust.id)}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={[styles.crustText, active && styles.crustTextSelected]}>
+                          {crust.name}
+                        </Text>
+                        {active && <Ionicons name="checkmark-circle" size={20} color="#FFC107" />}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
 
-                {/* Quantity Selector */}
+                {/* Quantity */}
                 <View style={styles.quantitySection}>
                   <Text style={styles.modalSectionTitle}>Quantity</Text>
                   <View style={styles.quantityControls}>
                     <TouchableOpacity
                       style={styles.quantityButton}
                       onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                      activeOpacity={0.9}
                     >
-                      <Ionicons name="remove" size={20} color="#333" />
+                      <Ionicons name="remove" size={18} color="#1A1A1A" />
                     </TouchableOpacity>
                     <Text style={styles.quantityText}>{quantity}</Text>
                     <TouchableOpacity
                       style={styles.quantityButton}
                       onPress={() => setQuantity(quantity + 1)}
+                      activeOpacity={0.9}
                     >
-                      <Ionicons name="add" size={20} color="#333" />
+                      <Ionicons name="add" size={18} color="#1A1A1A" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -273,8 +273,9 @@ export default function SpecialsScreen() {
                   <TouchableOpacity 
                     style={styles.addToCartButton}
                     onPress={handleAddToCart}
+                    activeOpacity={0.9}
                   >
-                    <Ionicons name="cart" size={20} color="#FFF" style={styles.cartIcon} />
+                    <Ionicons name="cart" size={20} color="#1A1A1A" style={styles.cartIcon} />
                     <Text style={styles.addToCartText}>Add to Cart</Text>
                   </TouchableOpacity>
                 </View>
@@ -290,19 +291,20 @@ export default function SpecialsScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Page base
   container: {
     flex: 1,
-    backgroundColor: '#FFF7E6',
+    backgroundColor: '#F8F8F8',
   },
 
-  // Header section
+  // Header section above list
   headerArea: {
     paddingTop: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111',
+    color: '#1A1A1A',
     paddingHorizontal: 16,
     marginTop: 12,
     marginBottom: 8,
@@ -323,6 +325,8 @@ const styles = StyleSheet.create({
     height: 86,
     borderRadius: 16,
     backgroundColor: CARD_BG,
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
   },
   crustLabel: {
     marginTop: 6,
@@ -339,9 +343,16 @@ const styles = StyleSheet.create({
   pizzaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF7ED',
-    padding: 12,
+    backgroundColor: '#fff',
+    padding: 14,
     borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   pizzaImage: { 
     width: 65, 
@@ -349,17 +360,15 @@ const styles = StyleSheet.create({
     borderRadius: 10, 
     marginRight: 14 
   },
-  pizzaInfo: { 
-    flex: 1 
-  },
+  pizzaInfo: { flex: 1 },
   pizzaName: { 
     fontSize: 15, 
-    fontWeight: '600',
-    color: '#111',
+    fontWeight: '700',
+    color: '#1A1A1A',
   },
   pizzaPrice: { 
     fontSize: 13, 
-    color: '#444',
+    color: '#666',
     marginTop: 2,
   },
 
@@ -375,10 +384,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24, 
     padding: 20,
     maxHeight: '90%',
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
   },
-  closeButton: { 
-    alignSelf: 'flex-end' 
-  },
+  closeButton: { alignSelf: 'flex-end' },
   modalImage: { 
     width: 200, 
     height: 200, 
@@ -388,9 +397,9 @@ const styles = StyleSheet.create({
   },
   modalPizzaName: { 
     fontSize: 22, 
-    fontWeight: '700', 
+    fontWeight: '800', 
     textAlign: 'center',
-    color: '#111',
+    color: '#1A1A1A',
   },
   modalPizzaDescription: { 
     textAlign: 'center', 
@@ -403,99 +412,116 @@ const styles = StyleSheet.create({
     fontWeight: '700', 
     marginTop: 16,
     marginBottom: 10,
-    color: '#111',
+    color: '#1A1A1A',
   },
 
-  // Size selection
+  // Size selection (cards)
   sizeOptions: { 
     flexDirection: 'row', 
     gap: 10 
   },
   sizeButton: { 
     flex: 1, 
-    padding: 12, 
-    borderRadius: 10, 
-    backgroundColor: '#F5F5F5', 
+    paddingVertical: 12, 
+    borderRadius: 12, 
+    backgroundColor: '#fff',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#F5F5F5',
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sizeButtonActive: { 
-    backgroundColor: '#FFEDD5',
-    borderColor: '#E53935',
+    backgroundColor: '#FFFBF5',
+    borderColor: '#FFC107',
   },
   sizeText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  sizeTextActive: {
+    color: '#1A1A1A',
   },
   sizePrice: {
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+    fontWeight: '600',
+  },
+  sizePriceActive: {
+    color: '#1A1A1A',
   },
 
-  // Crust selection
-  crustOptionsContainer: {
-    gap: 8,
-  },
+  // Crust selection (rows)
+  crustOptionsContainer: { gap: 10 },
   crustOption: { 
-    padding: 12, 
-    backgroundColor: '#F5F5F5', 
-    borderRadius: 10, 
+    padding: 14, 
+    backgroundColor: '#fff', 
+    borderRadius: 12, 
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#F5F5F5',
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   crustOptionSelected: { 
-    backgroundColor: '#FFEDD5',
-    borderColor: '#E53935',
+    backgroundColor: '#FFFBF5',
+    borderColor: '#FFC107',
   },
   crustText: { 
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   crustTextSelected: {
-    fontWeight: '600',
-    color: '#E53935',
+    color: '#1A1A1A',
   },
 
   // Quantity section
-  quantitySection: {
-    marginTop: 8,
-  },
+  quantitySection: { marginTop: 8 },
   quantityControls: { 
     flexDirection: 'row', 
     justifyContent: 'center', 
     alignItems: 'center', 
-    gap: 20,
+    gap: 18,
     paddingVertical: 8,
   },
   quantityButton: {
-    backgroundColor: '#F5F5F5',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    backgroundColor: '#FFC107',
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#FFC107',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   quantityText: { 
     fontSize: 20, 
-    fontWeight: '700',
-    color: '#111',
-    minWidth: 40,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    minWidth: 32,
     textAlign: 'center',
   },
 
-  // Footer
+  // Footer (summary + CTA)
   modalFooter: {
     marginTop: 20,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#E8E8E8',
   },
   totalInfo: {
     flexDirection: 'row',
@@ -504,30 +530,32 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   totalLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
   },
   totalPrice: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#E53935',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFC107',
   },
   addToCartButton: { 
-    backgroundColor: '#E53935', 
-    padding: 16, 
+    backgroundColor: '#FFC107', 
+    paddingVertical: 16, 
     borderRadius: 12, 
     flexDirection: 'row', 
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    shadowColor: '#FFC107',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  cartIcon: {
-    marginRight: 4,
-  },
+  cartIcon: { marginRight: 6 },
   addToCartText: { 
-    color: '#fff', 
+    color: '#1A1A1A', 
     fontSize: 16, 
-    fontWeight: '700' 
+    fontWeight: '800' 
   },
 });
