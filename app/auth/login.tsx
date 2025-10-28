@@ -1,4 +1,4 @@
-// app/auth/login.tsx — Fixed Guest Mode
+// app/auth/login.tsx — Clean + Minimal + Working Guest Mode ✅
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Image
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import {
@@ -35,20 +36,16 @@ export default function Login() {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
-  // Email validation helper
-  const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  // ---- EMAIL / PASSWORD LOGIN ----
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Missing Information', 'Please enter both email and password');
+      Alert.alert('Missing Info', 'Enter both email & password');
       return;
     }
-
     if (!isValidEmail(email.trim())) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address');
+      Alert.alert('Invalid Email', 'Enter a valid email');
       return;
     }
 
@@ -59,148 +56,44 @@ export default function Login() {
       if (!cred.user.emailVerified) {
         await sendEmailVerification(cred.user);
         await signOut(auth);
-        Alert.alert(
-          'Email Not Verified',
-          'We sent a verification link to your email. Please verify your email address and try again.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Email Not Verified', 'Verify & try again');
         return;
-      }
-
-      // Cache user data
-      const cache = await AsyncStorage.getItem(`@user_${cred.user.uid}`);
-      if (cache) {
-        const userData = JSON.parse(cache);
-        await AsyncStorage.setItem('@user_first_name', userData.firstName || '');
-        if (userData.lastName) await AsyncStorage.setItem('@user_last_name', userData.lastName);
-      } else if (cred.user.displayName) {
-        await AsyncStorage.setItem('@user_first_name', cred.user.displayName);
-      } else {
-        const first = email.split('@')[0];
-        await AsyncStorage.setItem('@user_first_name', first);
       }
 
       await AsyncStorage.removeItem('@guest_mode');
       await AsyncStorage.removeItem('@order_mode');
-      
-      // Small delay to ensure storage is written
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       router.replace('/start');
-    } catch (e: any) {
-      let msg = 'Unable to sign in. Please try again.';
-      if (e.code === 'auth/user-not-found') {
-        msg = 'No account found with this email address.';
-      } else if (e.code === 'auth/wrong-password') {
-        msg = 'Incorrect password. Please try again.';
-      } else if (e.code === 'auth/invalid-email') {
-        msg = 'Please enter a valid email address.';
-      } else if (e.code === 'auth/user-disabled') {
-        msg = 'This account has been disabled. Please contact support.';
-      } else if (e.code === 'auth/too-many-requests') {
-        msg = 'Too many failed attempts. Please try again later.';
-      } else if (e.code === 'auth/invalid-credential') {
-        msg = 'Invalid email or password. Please check and try again.';
-      } else if (e.code === 'auth/network-request-failed') {
-        msg = 'Network error. Please check your connection.';
-      }
-      Alert.alert('Sign In Failed', msg);
+    } catch (err: any) {
+      let msg = 'Login failed';
+      if (err.code === 'auth/wrong-password') msg = 'Wrong password';
+      if (err.code === 'auth/user-not-found') msg = 'Account not found';
+      Alert.alert('Error', msg);
     } finally {
       setBusy(false);
     }
   };
 
-  // ---- FORGOT PASSWORD ----
   const handleForgotPassword = async () => {
     if (!email) {
-      Alert.alert(
-        'Enter Email',
-        'Please enter your email address first, then tap Forgot Password again.'
-      );
+      Alert.alert('Enter Email', 'Then tap again');
       return;
     }
-
-    if (!isValidEmail(email.trim())) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address');
-      return;
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      Alert.alert('Email Sent', 'Check inbox');
+    } catch {
+      Alert.alert('Error', 'Failed to send reset email');
     }
-
-    Alert.alert(
-      'Reset Password',
-      `Send password reset link to ${email.trim()}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send',
-          onPress: async () => {
-            try {
-              await sendPasswordResetEmail(auth, email.trim());
-              Alert.alert(
-                'Email Sent',
-                'Password reset link has been sent to your email. Please check your inbox.'
-              );
-            } catch (e: any) {
-              let msg = 'Failed to send reset email';
-              if (e.code === 'auth/user-not-found') {
-                msg = 'No account found with this email address.';
-              } else if (e.code === 'auth/invalid-email') {
-                msg = 'Please enter a valid email address.';
-              }
-              Alert.alert('Error', msg);
-            }
-          },
-        },
-      ]
-    );
   };
 
-  // ---- GUEST MODE (FIXED) ----
   const handleGuest = async () => {
     setGuestLoading(true);
     try {
-      console.log('🔄 Starting guest mode setup...');
-      
-      // Clear all user-related data
-      await AsyncStorage.multiRemove([
-        '@order_mode',
-        '@user_first_name',
-        '@user_last_name',
-      ]);
-      
-      console.log('✅ Cleared user data');
-      
-      // Set guest mode
+      await AsyncStorage.clear();
       await AsyncStorage.setItem('@guest_mode', '1');
-      
-      console.log('✅ Guest mode set');
-      
-      // Verify it was set
-      const guestMode = await AsyncStorage.getItem('@guest_mode');
-      console.log('✅ Guest mode verified:', guestMode);
-      
-      // Small delay to ensure storage is written
-      await new Promise(resolve => setTimeout(resolve, 150));
-      
-      // Navigate to start
-      console.log('🚀 Navigating to /start...');
       router.replace('/start');
-      
-    } catch (error) {
-      console.error('❌ Error setting guest mode:', error);
-      Alert.alert(
-        'Error',
-        'Failed to continue as guest. Please try again.',
-        [
-          {
-            text: 'Retry',
-            onPress: handleGuest,
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ]
-      );
+    } catch {
+      Alert.alert('Error', 'Try again');
     } finally {
       setGuestLoading(false);
     }
@@ -210,136 +103,111 @@ export default function Login() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.wrap}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Welcome Back!</Text>
-              <Text style={styles.subtitle}>Sign in to continue</Text>
-            </View>
+        <ScrollView contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled">
 
-            {/* Form */}
-            <View style={styles.form}>
-              {/* Email Input */}
-              <View style={styles.inputContainer}>
-                <View style={[
-                  styles.inputWrapper,
-                  emailFocused && styles.inputWrapperFocused
-                ]}>
-                  <Ionicons name="mail-outline" size={20} color="#999" style={styles.icon} />
-                  <TextInput
-                    placeholder="Email address"
-                    placeholderTextColor="#999"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="email-address"
-                    value={email}
-                    onChangeText={setEmail}
-                    onFocus={() => setEmailFocused(true)}
-                    onBlur={() => setEmailFocused(false)}
-                    style={styles.input}
-                    editable={!busy && !guestLoading}
-                  />
-                </View>
-              </View>
+          {/* ✅ LOGO ADDED */}
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-              {/* Password Input */}
-              <View style={styles.inputContainer}>
-                <View style={[
-                  styles.inputWrapper,
-                  passwordFocused && styles.inputWrapperFocused
-                ]}>
-                  <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.icon} />
-                  <TextInput
-                    placeholder="Password"
-                    placeholderTextColor="#999"
-                    secureTextEntry={!showPassword}
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => setPasswordFocused(false)}
-                    style={[styles.input, styles.passwordInput]}
-                    editable={!busy && !guestLoading}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                    style={styles.eyeIcon}
-                    disabled={busy || guestLoading}
-                  >
-                    <Ionicons
-                      name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                      size={20}
-                      color="#999"
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Forgot Password */}
-              <TouchableOpacity
-                onPress={handleForgotPassword}
-                style={styles.forgotButton}
-                disabled={busy || guestLoading}
-              >
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-              </TouchableOpacity>
-
-              {/* Sign In Button */}
-              <TouchableOpacity
-                style={[styles.btn, (busy || guestLoading) && styles.btnDisabled]}
-                onPress={handleLogin}
-                disabled={busy || guestLoading}
-                activeOpacity={0.8}
-              >
-                {busy ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.btnText}>Sign In</Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Divider */}
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* Guest Button - Now with separate loading state */}
-              <TouchableOpacity
-                onPress={handleGuest}
-                style={[styles.guestBtn, guestLoading && styles.guestBtnLoading]}
-                disabled={busy || guestLoading}
-                activeOpacity={0.8}
-              >
-                {guestLoading ? (
-                  <ActivityIndicator color="#F4B400" />
-                ) : (
-                  <>
-                    <Ionicons name="person-outline" size={20} color="#F4B400" style={{ marginRight: 8 }} />
-                    <Text style={styles.guestText}>Continue as Guest</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                Don't have an account?{' '}
-                <Link href="/auth/signup" asChild>
-                  <Text style={styles.link}>Sign Up</Text>
-                </Link>
-              </Text>
-            </View>
+          <View style={styles.header}>
+            <Text style={styles.title}>Welcome Back!</Text>
+            <Text style={styles.subtitle}>Sign in to continue</Text>
           </View>
+
+          {/* Email */}
+          <View style={[styles.inputWrap, emailFocused && styles.focusWrap]}>
+            <Ionicons name="mail-outline" size={20} color="#999" style={styles.icon} />
+            <TextInput
+              placeholder="Email address"
+              placeholderTextColor="#999"
+              style={styles.input}
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
+              editable={!busy && !guestLoading}
+            />
+          </View>
+
+          {/* Password */}
+          <View style={[styles.inputWrap, passwordFocused && styles.focusWrap]}>
+            <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.icon} />
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor="#999"
+              secureTextEntry={!showPassword}
+              style={[styles.input, { paddingRight: 40 }]}
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
+              editable={!busy && !guestLoading}
+            />
+            <TouchableOpacity
+              style={styles.eye}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+                color="#999"
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Forgot */}
+          <TouchableOpacity onPress={handleForgotPassword} style={styles.forgot}>
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
+          {/* Sign In Btn */}
+          <TouchableOpacity
+            style={[styles.btn, (busy || guestLoading) && styles.disabled]}
+            disabled={busy || guestLoading}
+            onPress={handleLogin}
+            activeOpacity={0.8}
+          >
+            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Sign In</Text>}
+          </TouchableOpacity>
+
+          {/* OR */}
+          <View style={styles.divider}>
+            <View style={styles.line} />
+            <Text style={styles.or}>OR</Text>
+            <View style={styles.line} />
+          </View>
+
+          {/* Guest Mode */}
+          <TouchableOpacity
+            style={[styles.guestBtn, guestLoading && styles.disabled]}
+            onPress={handleGuest}
+            disabled={busy || guestLoading}
+            activeOpacity={0.8}
+          >
+            {guestLoading ? (
+              <ActivityIndicator />
+            ) : (
+              <>
+                <Ionicons name="person-outline" size={20} color="#F4B400" style={{ marginRight: 6 }} />
+                <Text style={styles.guestText}>Continue as Guest</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              Don’t have an account?{' '}
+              <Link href="/auth/select-role" style={styles.link}>Sign Up</Link>
+            </Text>
+          </View>
+
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -347,159 +215,77 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFBF5',
+  container: { flex: 1, backgroundColor: '#FFFBF5' },
+  scroll: { padding: 24, paddingTop: 60 },
+
+  /* ✅ Logo Style */
+  logo: {
+    width: 170,
+    height: 130,
+    alignSelf: 'center',
+    marginBottom: 25,
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  wrap: {
-    flex: 1,
-    padding: 24,
-    paddingTop: 60,
-    justifyContent: 'space-between',
-  },
-  header: {
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '400',
-  },
-  form: {
-    flex: 1,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputWrapper: {
+
+  header: { marginBottom: 40, alignItems: 'center' },
+  title: { fontSize: 32, fontWeight: '700', color: '#1A1A1A' },
+  subtitle: { fontSize: 16, color: '#666' },
+
+  inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
+    borderWidth: 1.2,
+    borderColor: '#E6E6E6',
     paddingHorizontal: 16,
-    height: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    height: 52,
+    marginBottom: 14,
+    shadowOpacity: 0.03,
+    shadowRadius: 1,
+    elevation: 0
   },
-  inputWrapperFocused: {
+  focusWrap: {
     borderColor: '#FFC107',
-    shadowColor: '#FFC107',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.12,
+    elevation: 1
   },
-  icon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1A1A1A',
-    fontWeight: '400',
-  },
-  passwordInput: {
-    paddingRight: 40,
-  },
-  eyeIcon: {
-    position: 'absolute',
-    right: 16,
-    padding: 4,
-  },
-  forgotButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-    padding: 4,
-  },
-  forgotText: {
-    fontSize: 14,
-    color: '#F4B400',
-    fontWeight: '600',
-  },
+  icon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 16, color: '#1A1A1A' },
+  eye: { position: 'absolute', right: 14 },
+
+  forgot: { alignSelf: 'flex-end', marginBottom: 20 },
+  forgotText: { color: '#F4B400', fontWeight: '600', fontSize: 14 },
+
   btn: {
     backgroundColor: '#FFC107',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+    height: 54,
     justifyContent: 'center',
-    height: 56,
-    shadowColor: '#FFC107',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  btnDisabled: {
-    opacity: 0.6,
-    shadowOpacity: 0.1,
-  },
-  btnText: {
-    fontWeight: '700',
-    fontSize: 16,
-    color: '#1A1A1A',
-  },
-  divider: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    borderRadius: 12,
+    marginBottom: 22,
+    shadowOpacity: 0.05,
+    elevation: 1
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E8E8E8',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: '#999',
-    fontWeight: '500',
-  },
+  disabled: { opacity: 0.6 },
+  btnText: { fontWeight: '700', fontSize: 16, color: '#1A1A1A' },
+
+  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  line: { flex: 1, height: 1, backgroundColor: '#E6E6E6' },
+  or: { marginHorizontal: 10, color: '#777', fontWeight: '500' },
+
   guestBtn: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF8E1',
-    padding: 16,
-    borderRadius: 12,
-    height: 56,
-    borderWidth: 1.5,
-    borderColor: '#FFE082',
-  },
-  guestBtnLoading: {
-    opacity: 0.6,
-  },
-  guestText: {
-    fontWeight: '600',
-    fontSize: 16,
-    color: '#F4B400',
-  },
-  footer: {
-    paddingTop: 24,
-    paddingBottom: 16,
     alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    borderRadius: 12,
+    height: 54,
+    borderWidth: 1,
+    borderColor: '#FFE082'
   },
-  footerText: {
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-    fontWeight: '400',
-  },
-  link: {
-    fontWeight: '700',
-    color: '#FFC107',
-    textDecorationLine: 'underline',
-  },
+  guestText: { fontSize: 15, fontWeight: '600', color: '#F4B400' },
+
+  footer: { marginTop: 28, alignItems: 'center', paddingBottom: 10 },
+  footerText: { fontSize: 15, color: '#555' },
+  link: { color: '#FFC107', fontWeight: '700' }
 });

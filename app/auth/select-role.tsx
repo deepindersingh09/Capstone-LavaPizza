@@ -1,6 +1,14 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 export default function SelectRole() {
   const router = useRouter();
@@ -16,13 +24,16 @@ export default function SelectRole() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
+      {/* 🔙 Back Button */}
+
       <Image
-        source={require('../../assets/images/logo.png')}
+        source={require("../../assets/images/logo.png")}
         style={styles.logo}
         resizeMode="contain"
       />
-      <Text style={styles.title}>Who Are You?</Text>
+
+      <Text style={styles.title}>Select Your Role</Text>
 
       <TouchableOpacity
         style={styles.button}
@@ -39,45 +50,60 @@ export default function SelectRole() {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, styles.lastButton]}
         onPress={() => handleSelectRole("admin")}
       >
         <Text style={styles.buttonText}>Restaurant Admin</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff7e6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    flexGrow: 1,
+    alignItems: "center",
+    backgroundColor: "#F7F0D9",
+    paddingHorizontal: 22,
+    paddingTop: 60,
+  },
+  backButton: {
+    position: "absolute",
+    top: 20,
+    left: 15,
+    zIndex: 10,
   },
   logo: {
-    width: 160,
-    height: 120,
-    marginBottom: 40,
+    width: 150,
+    height: 140,
+    marginBottom: 18,
   },
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    color: '#333',
+    fontWeight: "900",
+    color: "#222",
+    marginBottom: 28,
+    textAlign: "center",
   },
   button: {
-    width: '100%',
+    width: "100%",
     paddingVertical: 15,
-    backgroundColor: '#dd2c00', // Lava Pizza theme 🔥
-    borderRadius: 8,
-    alignItems: 'center',
-    marginVertical: 10,
+    backgroundColor: "#F0E249",
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 18,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  lastButton: {
+    marginBottom: 0,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600'
-  }
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#222",
+  },
 });

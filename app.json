@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "lavapizza",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
@@ -32,9 +31,10 @@
       "expo-router",
       "expo-web-browser"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
+"experiments": {
+  "typedRoutes": true
+},
+
     "extra": {
       "googleWebClientId": "898725473422-h5o07rea27deqfs5lhv05fitdk8qr38c.apps.googleusercontent.com"
     }
