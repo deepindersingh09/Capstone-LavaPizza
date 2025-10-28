@@ -1,25 +1,21 @@
-// lib/firebase.ts - SIMPLE VERSION
-import 'react-native-get-random-values';
-
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp } from "firebase/app";
+import { initializeAuth } from "firebase/auth";
+import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD5AevqcU5AfLqQ1QV6AjQMStDDfd0TeBk",
-  authDomain: "lava-pizza.firebaseapp.com",
-  projectId: "lava-pizza",
-  storageBucket: "lava-pizza.firebasestorage.app",
-  messagingSenderId: "898725473422",
-  appId: "1:898725473422:web:493925b270a984f1396ddf"
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize services
-const auth = getAuth(app);
+// ✅ Default persistence (works on Expo Go, no errors)
+export const auth = initializeAuth(app, {
+  persistence: undefined,
+});
 
-console.log('🔥 Firebase initialized');
-console.log('✅ Auth:', !!auth);
-
-export { auth};
+export default app;

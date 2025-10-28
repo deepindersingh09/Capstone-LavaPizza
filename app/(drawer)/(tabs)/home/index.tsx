@@ -21,98 +21,22 @@ const specials = [
   { id: 'sp4', title: 'Devil Fries', img: require('../../../../assets/images/menu/devil_fries.jpg') },
 ];
 
-// ✅ Updated categories with route IDs matching menuData.ts
 const categories = [
-  { 
-    id: 'c1', 
-    title: 'Pasta', 
-    img: require('../../../../assets/images/menu/pasta.png'),
-    routeId: 'pasta'
-  },
-  { 
-    id: 'c2', 
-    title: 'Gourmet Pizza', 
-    img: require('../../../../assets/images/menu/pizza2.png'),
-    routeId: 'gourmet-pizza'
-  },
-  { 
-    id: 'c3', 
-    title: 'Pizza', 
-    img: require('../../../../assets/images/menu/pizza3.jpg'),
-    routeId: 'pizza'
-  },
-  { 
-    id: 'c4', 
-    title: 'Double Pizza Deals', 
-    img: require('../../../../assets/images/menu/double_pizza.png'),
-    routeId: 'double-pizza-deals'
-  },
-  { 
-    id: 'c5', 
-    title: 'Appetizers', 
-    img: require('../../../../assets/images/menu/appetizers.png'),
-    routeId: 'appetizers'
-  },
-  { 
-    id: 'c6', 
-    title: 'Drinks & Dips', 
-    img: require('../../../../assets/images/menu/drinks.png'),
-    routeId: 'drinks-dips'
-  },
-  { 
-    id: 'c7', 
-    title: 'Chicken Wings', 
-    img: require('../../../../assets/images/menu/chicken_wings.png'),
-    routeId: 'chicken-wings'
-  },
-  { 
-    id: 'c8', 
-    title: 'Poutines', 
-    img: require('../../../../assets/images/menu/poutines.png'),
-    routeId: 'poutines'
-  },
-  { 
-    id: 'c9', 
-    title: 'Pizza Subs', 
-    img: require('../../../../assets/images/menu/pizza_subs.png'),
-    routeId: 'pizza-subs'
-  },
-  { 
-    id: 'c10', 
-    title: 'Shawarma Wraps', 
-    img: require('../../../../assets/images/menu/shawarma_wraps.png'),
-    routeId: 'shawarma-wraps'
-  },
-  { 
-    id: 'c11', 
-    title: 'Sides', 
-    img: require('../../../../assets/images/menu/sides.png'),
-    routeId: 'sides'
-  },
-  { 
-    id: 'c12', 
-    title: 'Walk-In Specials', 
-    img: require('../../../../assets/images/menu/walk_in_specials.png'),
-    routeId: 'walk-in-specials'
-  },
-  { 
-    id: 'c13', 
-    title: 'Meals', 
-    img: require('../../../../assets/images/menu/meals.png'),
-    routeId: 'meals'
-  },
-  { 
-    id: 'c14', 
-    title: 'Salads', 
-    img: require('../../../../assets/images/menu/salads.png'),
-    routeId: 'salads'
-  },
-  { 
-    id: 'c15', 
-    title: 'Cakes', 
-    img: require('../../../../assets/images/menu/cakes.png'),
-    routeId: 'cakes'
-  },
+  { id: 'c1', title: 'Pasta', img: require('../../../../assets/images/menu/pasta.png'), routeId: 'pasta' },
+  { id: 'c2', title: 'Gourmet Pizza', img: require('../../../../assets/images/menu/pizza2.png'), routeId: 'gourmet-pizza' },
+  { id: 'c3', title: 'Pizza', img: require('../../../../assets/images/menu/pizza3.jpg'), routeId: 'pizza' },
+  { id: 'c4', title: 'Double Pizza Deals', img: require('../../../../assets/images/menu/double_pizza.png'), routeId: 'double-pizza-deals' },
+  { id: 'c5', title: 'Appetizers', img: require('../../../../assets/images/menu/appetizers.png'), routeId: 'appetizers' },
+  { id: 'c6', title: 'Drinks & Dips', img: require('../../../../assets/images/menu/drinks.png'), routeId: 'drinks-dips' },
+  { id: 'c7', title: 'Chicken Wings', img: require('../../../../assets/images/menu/chicken_wings.png'), routeId: 'chicken-wings' },
+  { id: 'c8', title: 'Poutines', img: require('../../../../assets/images/menu/poutines.png'), routeId: 'poutines' },
+  { id: 'c9', title: 'Pizza Subs', img: require('../../../../assets/images/menu/pizza_subs.png'), routeId: 'pizza-subs' },
+  { id: 'c10', title: 'Shawarma Wraps', img: require('../../../../assets/images/menu/shawarma_wraps.png'), routeId: 'shawarma-wraps' },
+  { id: 'c11', title: 'Sides', img: require('../../../../assets/images/menu/sides.png'), routeId: 'sides' },
+  { id: 'c12', title: 'Walk-In Specials', img: require('../../../../assets/images/menu/walk_in_specials.png'), routeId: 'walk-in-specials' },
+  { id: 'c13', title: 'Meals', img: require('../../../../assets/images/menu/meals.png'), routeId: 'meals' },
+  { id: 'c14', title: 'Salads', img: require('../../../../assets/images/menu/salads.png'), routeId: 'salads' },
+  { id: 'c15', title: 'Cakes', img: require('../../../../assets/images/menu/cakes.png'), routeId: 'cakes' },
 ];
 
 const imgSrc = (img: any) => (typeof img === 'string' ? { uri: img } : img);
@@ -121,69 +45,33 @@ export default function HomeScreen() {
   const router = useRouter();
   const [userName, setUserName] = useState('There');
 
-  // ✅ Load user name when screen loads
-  useEffect(() => {
-    loadUserName();
-  }, []);
-
-  // ✅ Reload user name every time screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadUserName();
-    }, [])
-  );
+  useEffect(() => { loadUserName(); }, []);
+  useFocusEffect(React.useCallback(() => { loadUserName(); }, []));
 
   const loadUserName = async () => {
     try {
-      // Check if user is in guest mode
       const guestMode = await AsyncStorage.getItem('@guest_mode');
-      
-      if (guestMode === '1') {
-        setUserName('There');
-        return;
-      }
-
-      // Try to get name from AsyncStorage first
+      if (guestMode === '1') { setUserName('There'); return; }
       let firstName = await AsyncStorage.getItem('@user_first_name');
-      
-      // If not in storage, try Firebase auth
       if (!firstName && auth.currentUser?.displayName) {
         firstName = auth.currentUser.displayName;
         await AsyncStorage.setItem('@user_first_name', firstName);
       }
-
-      if (firstName) {
-        setUserName(firstName);
-      } else {
-        setUserName('There');
-      }
+      setUserName(firstName || 'There');
     } catch (e) {
       console.warn('Failed to load user name', e);
       setUserName('There');
     }
   };
 
-  // ✅ Handle category navigation - FIXED: Using absolute paths
-  const handleCategoryPress = (routeId: string) => {
-    router.push(`/menu/${routeId}`);
-  };
-
-  // ✅ Handle deal navigation - FIXED: Using absolute path
-  const handleDealPress = (dealId: string) => {
-    // Navigate to specific deal or double pizza deals category
-    router.push('/menu/double-pizza-deals');
-  };
-
-  // ✅ Handle special navigation - FIXED: Using absolute path
-  const handleSpecialPress = (specialId: string) => {
-    // Navigate to walk-in specials or specific item
-    router.push('/menu/walk-in-specials');
-  };
+  const handleCategoryPress = (routeId: string) => router.push(`/menu/${routeId}`);
+  const handleDealPress = (dealId: string) => router.push('/menu/double-pizza-deals');
+  const handleSpecialPress = (specialId: string) => router.push('/menu/walk-in-specials');
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['left','right','bottom']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* ✅ Display dynamic user name */}
+
         <Text style={styles.hello}>Hi, {userName}!</Text>
         <Text style={styles.sub}>Let the cheesy goodness begin!</Text>
 
@@ -195,11 +83,7 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}
           renderItem={({ item }) => (
-            <TouchableOpacity 
-              style={styles.dealCard} 
-              activeOpacity={0.85}
-              onPress={() => handleDealPress(item.id)}
-            >
+            <TouchableOpacity style={styles.dealCard} activeOpacity={0.85} onPress={() => handleDealPress(item.id)}>
               <Image source={imgSrc(item.img)} style={styles.dealImage} />
               <Text numberOfLines={1} style={styles.dealTitle}>{item.title}</Text>
               <Text style={styles.dealPrice}>${item.price.toFixed(2)}</Text>
@@ -215,11 +99,7 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}
           renderItem={({ item }) => (
-            <TouchableOpacity 
-              style={styles.specialCard} 
-              activeOpacity={0.85}
-              onPress={() => handleSpecialPress(item.id)}
-            >
+            <TouchableOpacity style={styles.specialCard} activeOpacity={0.85} onPress={() => handleSpecialPress(item.id)}>
               <Image source={imgSrc(item.img)} style={styles.specialImage} />
               <Text numberOfLines={1} style={styles.specialTitle}>{item.title}</Text>
             </TouchableOpacity>
@@ -229,135 +109,42 @@ export default function HomeScreen() {
         <Text style={styles.section}>Explore the menu</Text>
         <View style={styles.grid}>
           {categories.map((c) => (
-            <TouchableOpacity 
-              key={c.id} 
-              style={styles.gridCard} 
-              activeOpacity={0.9}
-              onPress={() => handleCategoryPress(c.routeId)}
-            >
+            <TouchableOpacity key={c.id} style={styles.gridCard} activeOpacity={0.9} onPress={() => handleCategoryPress(c.routeId)}>
               <Image source={imgSrc(c.img)} style={styles.gridImage} />
               <Text numberOfLines={2} style={styles.gridTitle}>{c.title}</Text>
             </TouchableOpacity>
           ))}
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  container: {
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-  },
-  hello: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 2,
-    color: '#d32f2f',
-  },
-  sub: {
-    fontSize: 16,
-    color: '#444',
-    marginBottom: 18,
-  },
-  section: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 18,
-    marginBottom: 10,
-    color: '#222',
-  },
+  safe: { flex: 1, backgroundColor: '#fff' },
+  container: { paddingVertical: 16, paddingHorizontal: 8 },
+  hello: { fontSize: 28, fontWeight: 'bold', marginBottom: 2, color: '#1A1A1A' },
+  sub: { fontSize: 16, color: '#666', marginBottom: 18 },
+  section: { fontSize: 20, fontWeight: '600', marginTop: 18, marginBottom: 10, color: '#1A1A1A' },
   dealCard: {
-    width: 140,
-    backgroundColor: '#fff8f0',
-    borderRadius: 14,
-    padding: 10,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    width: 140, backgroundColor: '#fff8f0', borderRadius: 14, padding: 10, alignItems: 'center',
+    elevation: 2, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }
   },
-  dealImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 10,
-    marginBottom: 8,
-    resizeMode: 'cover',
-  },
-  dealTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    marginBottom: 2,
-    color: '#b71c1c',
-  },
-  dealPrice: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#222',
-  },
+  dealImage: { width: 90, height: 90, borderRadius: 10, marginBottom: 8, resizeMode: 'cover' },
+  dealTitle: { fontSize: 15, fontWeight: '500', marginBottom: 2, color: '#1A1A1A' },
+  dealPrice: { fontSize: 15, fontWeight: 'bold', color: '#1A1A1A' },
   specialCard: {
-    width: 120,
-    backgroundColor: '#f3f6fa',
-    borderRadius: 14,
-    padding: 10,
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    width: 120, backgroundColor: '#f0f0e2', borderRadius: 14, padding: 10, alignItems: 'center',
+    elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }
   },
-  specialImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    marginBottom: 8,
-    resizeMode: 'cover',
-  },
-  specialTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#222',
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 24,
-  },
+  specialImage: { width: 80, height: 80, borderRadius: 10, marginBottom: 8, resizeMode: 'cover' },
+  specialTitle: { fontSize: 14, fontWeight: '500', color: '#1A1A1A', textAlign: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 8, marginBottom: 24 },
   gridCard: {
-    width: '30%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 8,
-    alignItems: 'center',
-    marginBottom: 16,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    width: '30%', backgroundColor: '#fff', borderRadius: 12, padding: 8, alignItems: 'center', marginBottom: 16,
+    elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }
   },
-  gridImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginBottom: 6,
-    resizeMode: 'cover',
-  },
-  gridTitle: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#444',
-    textAlign: 'center',
-  },
+  gridImage: { width: 60, height: 60, borderRadius: 8, marginBottom: 6, resizeMode: 'cover' },
+  gridTitle: { fontSize: 13, fontWeight: '500', color: '#1A1A1A', textAlign: 'center' },
 });

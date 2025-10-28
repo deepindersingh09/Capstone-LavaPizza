@@ -24,6 +24,8 @@ export default function TabsLayout() {
           </Pressable>
         ),
         tabBarShowLabel: true,
+        tabBarActiveTintColor: '#5D4037', // Dark brown for active tab
+        tabBarInactiveTintColor: '#777',  // Gray for inactive tabs
       }}
     >
       <Tabs.Screen

@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CARD_BG = '#fff';
 
-// Pizza data structure
 const pizzas = [
   { 
     id: 'volcanic-pizza',
@@ -72,10 +72,11 @@ type Pizza = typeof pizzas[0];
 
 export default function SpecialsScreen() {
   const router = useRouter();
+
   const [selectedPizza, setSelectedPizza] = useState<Pizza | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCrust, setSelectedCrust] = useState('thin');
-  const [selectedSize, setSelectedSize] = useState(SIZES[1]); // Default to Medium
+  const [selectedSize, setSelectedSize] = useState(SIZES[1]);
   const [quantity, setQuantity] = useState(1);
 
   // Handle crust selection - Navigate to custom builder
@@ -92,8 +93,7 @@ export default function SpecialsScreen() {
     setSelectedCrust('thin');
   };
 
-  // Handle add to cart
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!selectedPizza || !selectedSize) {
       Alert.alert('Error', 'Please select a size before adding to cart');
       return;
@@ -101,20 +101,50 @@ export default function SpecialsScreen() {
 
     const totalPrice = selectedSize.price * quantity;
 
-    Alert.alert(
-      'Added to Cart! 🍕',
-      `${selectedPizza.name}\n${selectedSize.size} • ${selectedCrust} crust\nQuantity: ${quantity}\nTotal: $${totalPrice.toFixed(2)}`,
-      [
-        { text: 'Continue Shopping', onPress: () => setModalVisible(false) },
-        { 
-          text: 'View Cart', 
-          onPress: () => {
-            setModalVisible(false);
-            router.push('/cart');
-          }
-        },
-      ]
-    );
+    try {
+      // Create cart item
+      const cartItem = {
+        id: `${selectedPizza.id}-${Date.now()}`,
+        name: selectedPizza.name,
+        price: totalPrice,
+        quantity: quantity,
+        size: selectedSize.size,
+        crust: selectedCrust,
+        type: 'special',
+      };
+
+      // Get existing cart
+      const cartData = await AsyncStorage.getItem('@cart');
+      const cart = cartData ? JSON.parse(cartData) : [];
+
+      // Add new item
+      cart.push(cartItem);
+
+      // Save cart
+      await AsyncStorage.setItem('@cart', JSON.stringify(cart));
+
+      Alert.alert(
+        'Added to Cart! 🍕',
+        `${selectedPizza.name}\n${selectedSize.size} • ${selectedCrust} crust\nQuantity: ${quantity}\nTotal: $${totalPrice.toFixed(2)}`,
+        [
+          { text: 'Continue Shopping', onPress: () => setModalVisible(false) },
+          { 
+            text: 'View Cart', 
+            onPress: () => {
+              setModalVisible(false);
+              try {
+                router.push('/(drawer)/(tabs)/cart');
+              } catch (e) {
+                router.push('/cart');
+              }
+            }
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      Alert.alert('Error', 'Failed to add item to cart');
+    }
   };
   
   // Calculate total price
@@ -124,11 +154,7 @@ export default function SpecialsScreen() {
     <View style={styles.headerArea}>
       {/* Crust Selection - CLICKABLE */}
       <Text style={styles.sectionTitle}>Create your own Pizza</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.crustRow}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.crustRow}>
         {crustOptions.map((item) => (
           <TouchableOpacity 
             key={item.id}
@@ -142,27 +168,15 @@ export default function SpecialsScreen() {
         ))}
       </ScrollView>
 
-      {/* Pizzas title */}
       <Text style={[styles.sectionTitle, { marginTop: 4 }]}>Pizzas</Text>
     </View>
   );
 
   const renderItem = ({ item }: { item: Pizza }) => (
-    <TouchableOpacity 
-      activeOpacity={0.7} 
-      style={styles.pizzaItem}
-      onPress={() => handlePizzaClick(item)}
-    >
+    <TouchableOpacity activeOpacity={0.7} style={styles.pizzaItem} onPress={() => handlePizzaClick(item)}>
       <Image source={item.image} style={styles.pizzaImage} />
       <View style={styles.pizzaInfo}>
-        <View style={styles.nameRow}>
-          <Text style={styles.pizzaName} numberOfLines={1}>{item.name}</Text>
-          {item.popular && (
-            <View style={styles.popularBadge}>
-              <Ionicons name="star" size={12} color="#FFF" />
-            </View>
-          )}
-        </View>
+        <Text style={styles.pizzaName}>{item.name}</Text>
         <Text style={styles.pizzaPrice}>From ${item.price.toFixed(2)}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#999" />
@@ -176,90 +190,56 @@ export default function SpecialsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListHeaderComponent={ListHeader}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Pizza Detail Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      {/* Modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Ionicons name="close" size={28} color="#333" />
+            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+              <Ionicons name="close" size={26} color="#333" />
             </TouchableOpacity>
 
             {selectedPizza && (
               <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Pizza Image */}
-                <View style={styles.modalImageContainer}>
-                  <Image source={selectedPizza.image} style={styles.modalPizzaImage} />
-                  {selectedPizza.popular && (
-                    <View style={styles.modalPopularBadge}>
-                      <Ionicons name="star" size={16} color="#FFF" />
-                      <Text style={styles.modalPopularText}>Popular</Text>
-                    </View>
-                  )}
-                </View>
+                <Image source={selectedPizza.image} style={styles.modalImage} />
 
-                {/* Pizza Info */}
                 <Text style={styles.modalPizzaName}>{selectedPizza.name}</Text>
                 <Text style={styles.modalPizzaDescription}>{selectedPizza.description}</Text>
 
-                {/* Size Selection */}
-                <View style={styles.sizeSection}>
-                  <Text style={styles.modalSectionTitle}>Select Size</Text>
-                  <View style={styles.sizeOptions}>
-                    {SIZES.map((size) => (
-                      <TouchableOpacity
-                        key={size.size}
-                        style={[
-                          styles.sizeButton,
-                          selectedSize.size === size.size && styles.sizeButtonActive
-                        ]}
-                        onPress={() => setSelectedSize(size)}
-                      >
-                        <Text style={[
-                          styles.sizeText,
-                          selectedSize.size === size.size && styles.sizeTextActive
-                        ]}>
-                          {size.size}
-                        </Text>
-                        <Text style={[
-                          styles.sizePrice,
-                          selectedSize.size === size.size && styles.sizePriceActive
-                        ]}>
-                          ${size.price.toFixed(2)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                {/* Size */}
+                <Text style={styles.modalSectionTitle}>Select Size</Text>
+                <View style={styles.sizeOptions}>
+                  {SIZES.map((size) => (
+                    <TouchableOpacity
+                      key={size.size}
+                      style={[styles.sizeButton, selectedSize.size === size.size && styles.sizeButtonActive]}
+                      onPress={() => setSelectedSize(size)}
+                    >
+                      <Text style={styles.sizeText}>{size.size}</Text>
+                      <Text style={styles.sizePrice}>${size.price.toFixed(2)}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
 
-                {/* Crust Selection */}
-                <View style={styles.crustSection}>
-                  <Text style={styles.modalSectionTitle}>Select Crust</Text>
+                {/* Crust */}
+                <Text style={styles.modalSectionTitle}>Select Crust</Text>
+                <View style={styles.crustOptionsContainer}>
                   {crustOptions.map((crust) => (
                     <TouchableOpacity
                       key={crust.id}
-                      style={[
-                        styles.crustOption,
-                        selectedCrust === crust.id && styles.crustOptionSelected
-                      ]}
+                      style={[styles.crustOption, selectedCrust === crust.id && styles.crustOptionSelected]}
                       onPress={() => setSelectedCrust(crust.id)}
                     >
-                      <View style={styles.radioButton}>
-                        {selectedCrust === crust.id && <View style={styles.radioButtonInner} />}
-                      </View>
-                      <Text style={styles.crustOptionText}>{crust.name}</Text>
+                      <Text style={[styles.crustText, selectedCrust === crust.id && styles.crustTextSelected]}>
+                        {crust.name}
+                      </Text>
+                      {selectedCrust === crust.id && (
+                        <Ionicons name="checkmark-circle" size={20} color="#E53935" />
+                      )}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -298,6 +278,8 @@ export default function SpecialsScreen() {
                     <Text style={styles.addToCartText}>Add to Cart</Text>
                   </TouchableOpacity>
                 </View>
+
+                <View style={{ height: 20 }} />
               </ScrollView>
             )}
           </View>
@@ -357,258 +339,195 @@ const styles = StyleSheet.create({
   pizzaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: CARD_BG,
-    borderRadius: 14,
+    backgroundColor: '#FFF7ED',
     padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  pizzaImage: {
-    width: 64,
-    height: 64,
     borderRadius: 12,
-    marginRight: 12,
-    backgroundColor: '#f0f0f0',
   },
-  pizzaInfo: {
-    flex: 1,
-    minHeight: 44,
-    justifyContent: 'center',
+  pizzaImage: { 
+    width: 65, 
+    height: 65, 
+    borderRadius: 10, 
+    marginRight: 14 
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  pizzaInfo: { 
+    flex: 1 
   },
-  pizzaName: {
-    fontSize: 15,
+  pizzaName: { 
+    fontSize: 15, 
     fontWeight: '600',
     color: '#111',
-    marginBottom: 2,
-    flex: 1,
   },
-  popularBadge: {
-    backgroundColor: '#FFD700',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pizzaPrice: {
-    fontSize: 13.5,
-    color: '#666',
-  },
-  separator: {
-    height: 10,
+  pizzaPrice: { 
+    fontSize: 13, 
+    color: '#444',
+    marginTop: 2,
   },
 
   // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+  modalOverlay: { 
+    flex: 1, 
+    justifyContent: 'flex-end', 
+    backgroundColor: 'rgba(0,0,0,0.4)' 
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+  modalContent: { 
+    backgroundColor: '#fff', 
+    borderTopLeftRadius: 24, 
+    borderTopRightRadius: 24, 
     padding: 20,
     maxHeight: '90%',
   },
-  closeButton: {
-    alignSelf: 'flex-end',
-    padding: 4,
-    marginBottom: 8,
+  closeButton: { 
+    alignSelf: 'flex-end' 
   },
-  modalImageContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-    position: 'relative',
+  modalImage: { 
+    width: 200, 
+    height: 200, 
+    borderRadius: 100, 
+    alignSelf: 'center', 
+    marginVertical: 10 
   },
-  modalPizzaImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-  },
-  modalPopularBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E53935',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    gap: 4,
-  },
-  modalPopularText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  modalPizzaName: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  modalPizzaName: { 
+    fontSize: 22, 
+    fontWeight: '700', 
     textAlign: 'center',
-    marginBottom: 8,
     color: '#111',
   },
-  modalPizzaDescription: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 20,
+  modalPizzaDescription: { 
+    textAlign: 'center', 
+    marginBottom: 14, 
+    fontSize: 14, 
+    color: '#555' 
+  },
+  modalSectionTitle: { 
+    fontSize: 16, 
+    fontWeight: '700', 
+    marginTop: 16,
+    marginBottom: 10,
+    color: '#111',
   },
 
-  // Size section
-  sizeSection: {
-    marginBottom: 20,
+  // Size selection
+  sizeOptions: { 
+    flexDirection: 'row', 
+    gap: 10 
   },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-    color: '#111',
-  },
-  sizeOptions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  sizeButton: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 14,
+  sizeButton: { 
+    flex: 1, 
+    padding: 12, 
+    borderRadius: 10, 
+    backgroundColor: '#F5F5F5', 
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: '#F5F5F5',
   },
-  sizeButtonActive: {
-    backgroundColor: '#FFE5E5',
+  sizeButtonActive: { 
+    backgroundColor: '#FFEDD5',
     borderColor: '#E53935',
   },
   sizeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
-    marginBottom: 4,
-  },
-  sizeTextActive: {
-    color: '#E53935',
-  },
-  sizePrice: {
-    fontSize: 15,
-    fontWeight: 'bold',
     color: '#333',
   },
-  sizePriceActive: {
-    color: '#E53935',
+  sizePrice: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 
-  // Crust section
-  crustSection: {
-    marginBottom: 20,
+  // Crust selection
+  crustOptionsContainer: {
+    gap: 8,
   },
-  crustOption: {
+  crustOption: { 
+    padding: 12, 
+    backgroundColor: '#F5F5F5', 
+    borderRadius: 10, 
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  crustOptionSelected: {
-    borderColor: '#E53935',
-    backgroundColor: '#fff5f0',
-  },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
     borderWidth: 2,
+    borderColor: '#F5F5F5',
+  },
+  crustOptionSelected: { 
+    backgroundColor: '#FFEDD5',
     borderColor: '#E53935',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  radioButtonInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#E53935',
-  },
-  crustOptionText: {
+  crustText: { 
     fontSize: 14,
-    color: '#111',
+    fontWeight: '500',
+    color: '#333',
+  },
+  crustTextSelected: {
+    fontWeight: '600',
+    color: '#E53935',
   },
 
   // Quantity section
   quantitySection: {
-    marginBottom: 20,
+    marginTop: 8,
   },
-  quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  quantityControls: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
     gap: 20,
+    paddingVertical: 8,
   },
   quantityButton: {
+    backgroundColor: '#F5F5F5',
     width: 40,
     height: 40,
-    backgroundColor: '#f5f5f5',
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  quantityText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+  quantityText: { 
+    fontSize: 20, 
+    fontWeight: '700',
+    color: '#111',
     minWidth: 40,
     textAlign: 'center',
   },
 
-  // Modal footer
+  // Footer
   modalFooter: {
-    marginTop: 10,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
   },
   totalInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   totalLabel: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
   },
   totalPrice: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#E53935',
   },
-  addToCartButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  addToCartButton: { 
+    backgroundColor: '#E53935', 
+    padding: 16, 
+    borderRadius: 12, 
+    flexDirection: 'row', 
     justifyContent: 'center',
-    backgroundColor: '#E53935',
-    borderRadius: 12,
-    paddingVertical: 16,
+    alignItems: 'center',
     gap: 8,
   },
   cartIcon: {
     marginRight: 4,
   },
-  addToCartText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
+  addToCartText: { 
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '700' 
   },
 });

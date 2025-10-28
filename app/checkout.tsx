@@ -9,6 +9,7 @@ import {
   Alert,
   SafeAreaView,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,6 +30,7 @@ export default function CheckoutScreen() {
 
   useEffect(() => {
     loadCartItems();
+    loadUserInfo();
   }, []);
 
   const loadCartItems = async () => {
@@ -36,8 +38,19 @@ export default function CheckoutScreen() {
       const cartData = await AsyncStorage.getItem('@cart');
       const cart = cartData ? JSON.parse(cartData) : [];
       setCartItems(cart);
+      console.log('Loaded cart items:', cart.length);
     } catch (error) {
       console.error('Error loading cart:', error);
+    }
+  };
+
+  const loadUserInfo = async () => {
+    try {
+      // Try to load saved user info
+      const savedName = await AsyncStorage.getItem('@user_first_name');
+      if (savedName) setName(savedName);
+    } catch (error) {
+      console.error('Error loading user info:', error);
     }
   };
 
@@ -47,7 +60,7 @@ export default function CheckoutScreen() {
       return false;
     }
     if (!phone.trim() || phone.length < 10) {
-      Alert.alert('Error', 'Please enter a valid phone number');
+      Alert.alert('Error', 'Please enter a valid phone number (at least 10 digits)');
       return false;
     }
     if (!address.trim()) {
@@ -55,7 +68,7 @@ export default function CheckoutScreen() {
       return false;
     }
     if (paymentMethod === 'card' && (!cardNumber.trim() || cardNumber.length < 16)) {
-      Alert.alert('Error', 'Please enter a valid card number');
+      Alert.alert('Error', 'Please enter a valid 16-digit card number');
       return false;
     }
     return true;
@@ -64,15 +77,17 @@ export default function CheckoutScreen() {
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
+    if (cartItems.length === 0) {
+      Alert.alert('Cart Empty', 'Please add items to your cart first');
+      return;
+    }
+
     setLoading(true);
 
     // Simulate payment processing
     setTimeout(async () => {
       try {
-        // Clear cart
-        await AsyncStorage.removeItem('@cart');
-
-        // Save order to history (optional)
+        // Create order object
         const order = {
           id: Date.now().toString(),
           items: cartItems,
@@ -82,18 +97,23 @@ export default function CheckoutScreen() {
           address,
           paymentMethod,
           date: new Date().toISOString(),
+          status: 'placed',
         };
 
+        // Save order to history
         const ordersData = await AsyncStorage.getItem('@orders');
         const orders = ordersData ? JSON.parse(ordersData) : [];
         orders.unshift(order);
         await AsyncStorage.setItem('@orders', JSON.stringify(orders));
 
+        // Clear cart
+        await AsyncStorage.removeItem('@cart');
+
         setLoading(false);
 
         Alert.alert(
           '🎉 Order Placed Successfully!',
-          `Order #${order.id.slice(-6)}\n\nYour delicious pizza will arrive in 30-45 minutes!`,
+          `Order #${order.id.slice(-6)}\n\nYour delicious pizza will arrive in 30-45 minutes!\n\nTotal: $${totalAmount.toFixed(2)}`,
           [
             {
               text: 'OK',
@@ -113,6 +133,7 @@ export default function CheckoutScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111" />
@@ -121,34 +142,50 @@ export default function CheckoutScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
         {/* Order Summary */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Summary</Text>
-          {cartItems.map((item, index) => (
-            <View key={index} style={styles.orderItem}>
-              <Text style={styles.orderItemName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.orderItemPrice}>${item.price.toFixed(2)}</Text>
+          <Text style={styles.sectionTitle}>
+            <Ionicons name="receipt-outline" size={20} /> Order Summary
+          </Text>
+          <View style={styles.summaryBox}>
+            {cartItems.map((item, index) => (
+              <View key={index} style={styles.orderItem}>
+                <View style={styles.orderItemInfo}>
+                  <Text style={styles.orderItemName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  {item.size && (
+                    <Text style={styles.orderItemDetail}>Size: {item.size}</Text>
+                  )}
+                  {item.quantity && item.quantity > 1 && (
+                    <Text style={styles.orderItemDetail}>Qty: {item.quantity}</Text>
+                  )}
+                </View>
+                <Text style={styles.orderItemPrice}>${item.price.toFixed(2)}</Text>
+              </View>
+            ))}
+            <View style={styles.divider} />
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalAmount}>${totalAmount.toFixed(2)}</Text>
             </View>
-          ))}
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalAmount}>${totalAmount.toFixed(2)}</Text>
           </View>
         </View>
 
         {/* Delivery Details */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery Details</Text>
+          <Text style={styles.sectionTitle}>
+            <Ionicons name="location-outline" size={20} /> Delivery Details
+          </Text>
           
           <Text style={styles.inputLabel}>Full Name *</Text>
           <TextInput
             style={styles.input}
-            placeholder="John Doe"
+            placeholder="Enter your full name"
             value={name}
             onChangeText={setName}
+            autoCapitalize="words"
           />
 
           <Text style={styles.inputLabel}>Phone Number *</Text>
@@ -164,17 +201,20 @@ export default function CheckoutScreen() {
           <Text style={styles.inputLabel}>Delivery Address *</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="123 Main St, Apt 4B, City, State, ZIP"
+            placeholder="123 Main St, Apt 4B&#10;City, Province, Postal Code"
             value={address}
             onChangeText={setAddress}
             multiline
             numberOfLines={3}
+            textAlignVertical="top"
           />
         </View>
 
         {/* Payment Method */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
+          <Text style={styles.sectionTitle}>
+            <Ionicons name="card-outline" size={20} /> Payment Method
+          </Text>
           
           <TouchableOpacity
             style={[
@@ -186,7 +226,7 @@ export default function CheckoutScreen() {
             <View style={styles.radioButton}>
               {paymentMethod === 'card' && <View style={styles.radioButtonInner} />}
             </View>
-            <Ionicons name="card" size={24} color="#E53935" style={{ marginRight: 10 }} />
+            <Ionicons name="card" size={24} color="#E53935" style={styles.paymentIcon} />
             <Text style={styles.paymentText}>Credit/Debit Card</Text>
           </TouchableOpacity>
 
@@ -214,7 +254,7 @@ export default function CheckoutScreen() {
             <View style={styles.radioButton}>
               {paymentMethod === 'cash' && <View style={styles.radioButtonInner} />}
             </View>
-            <Ionicons name="cash" size={24} color="#E53935" style={{ marginRight: 10 }} />
+            <Ionicons name="cash" size={24} color="#E53935" style={styles.paymentIcon} />
             <Text style={styles.paymentText}>Cash on Delivery</Text>
           </TouchableOpacity>
         </View>
@@ -229,9 +269,13 @@ export default function CheckoutScreen() {
           onPress={handlePlaceOrder}
           disabled={loading}
         >
-          <Text style={styles.placeOrderText}>
-            {loading ? 'Processing...' : `Place Order - $${totalAmount.toFixed(2)}`}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.placeOrderText}>
+              Place Order - ${totalAmount.toFixed(2)}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -260,11 +304,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111',
   },
+  scrollView: {
+    flex: 1,
+  },
   section: {
     backgroundColor: '#fff',
     margin: 16,
     padding: 16,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 18,
@@ -272,30 +324,46 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#111',
   },
+  summaryBox: {
+    backgroundColor: '#FFF9F0',
+    padding: 12,
+    borderRadius: 8,
+  },
   orderItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  orderItemName: {
-    fontSize: 14,
-    color: '#666',
+  orderItemInfo: {
     flex: 1,
+    marginRight: 12,
   },
-  orderItemPrice: {
+  orderItemName: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111',
+    marginBottom: 2,
+  },
+  orderItemDetail: {
+    fontSize: 12,
+    color: '#666',
+  },
+  orderItemPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#E53935',
+  },
+  divider: {
+    height: 2,
+    backgroundColor: '#E53935',
+    marginVertical: 12,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 2,
-    borderTopColor: '#E53935',
+    paddingTop: 4,
   },
   totalLabel: {
     fontSize: 18,
@@ -311,19 +379,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
-    marginTop: 12,
+    marginTop: 8,
     color: '#111',
   },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    padding: 12,
+    padding: 14,
     fontSize: 16,
     backgroundColor: '#fff',
   },
   textArea: {
-    height: 80,
+    height: 90,
     textAlignVertical: 'top',
   },
   paymentOption: {
@@ -334,6 +402,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     marginBottom: 12,
+    backgroundColor: '#fff',
   },
   paymentOptionSelected: {
     borderColor: '#E53935',
@@ -355,6 +424,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#E53935',
   },
+  paymentIcon: {
+    marginRight: 10,
+  },
   paymentText: {
     fontSize: 16,
     fontWeight: '600',
@@ -372,6 +444,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
   placeOrderButton: {
     backgroundColor: '#E53935',
