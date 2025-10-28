@@ -26,7 +26,9 @@ export default function SelectRole() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* 🔙 Back Button */}
-
+<TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={26} color="#000" />
+        </TouchableOpacity>
       <Image
         source={require("../../assets/images/logo.png")}
         style={styles.logo}
