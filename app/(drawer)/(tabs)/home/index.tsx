@@ -124,27 +124,27 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   container: { paddingVertical: 16, paddingHorizontal: 8 },
-  hello: { fontSize: 28, fontWeight: 'bold', marginBottom: 2, color: '#f8a831' },
-  sub: { fontSize: 16, color: '#444', marginBottom: 18 },
-  section: { fontSize: 20, fontWeight: '600', marginTop: 18, marginBottom: 10, color: '#f0e249' },
+  hello: { fontSize: 28, fontWeight: 'bold', marginBottom: 2, color: '#1A1A1A' },
+  sub: { fontSize: 16, color: '#666', marginBottom: 18 },
+  section: { fontSize: 20, fontWeight: '600', marginTop: 18, marginBottom: 10, color: '#1A1A1A' },
   dealCard: {
     width: 140, backgroundColor: '#fff8f0', borderRadius: 14, padding: 10, alignItems: 'center',
     elevation: 2, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }
   },
   dealImage: { width: 90, height: 90, borderRadius: 10, marginBottom: 8, resizeMode: 'cover' },
-  dealTitle: { fontSize: 15, fontWeight: '500', marginBottom: 2, color: '#f8a831' },
-  dealPrice: { fontSize: 15, fontWeight: 'bold', color: '#222' },
+  dealTitle: { fontSize: 15, fontWeight: '500', marginBottom: 2, color: '#1A1A1A' },
+  dealPrice: { fontSize: 15, fontWeight: 'bold', color: '#1A1A1A' },
   specialCard: {
     width: 120, backgroundColor: '#f0f0e2', borderRadius: 14, padding: 10, alignItems: 'center',
     elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }
   },
   specialImage: { width: 80, height: 80, borderRadius: 10, marginBottom: 8, resizeMode: 'cover' },
-  specialTitle: { fontSize: 14, fontWeight: '500', color: '#f8a831', textAlign: 'center' },
+  specialTitle: { fontSize: 14, fontWeight: '500', color: '#1A1A1A', textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 8, marginBottom: 24 },
   gridCard: {
     width: '30%', backgroundColor: '#fff', borderRadius: 12, padding: 8, alignItems: 'center', marginBottom: 16,
     elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }
   },
   gridImage: { width: 60, height: 60, borderRadius: 8, marginBottom: 6, resizeMode: 'cover' },
-  gridTitle: { fontSize: 13, fontWeight: '500', color: '#f0e249', textAlign: 'center' },
+  gridTitle: { fontSize: 13, fontWeight: '500', color: '#1A1A1A', textAlign: 'center' },
 });
