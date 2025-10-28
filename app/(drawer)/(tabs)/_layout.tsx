@@ -1,4 +1,3 @@
-// app/(drawer)/(tabs)/_layout.tsx  (your file)
 import React from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Pressable } from 'react-native';
@@ -13,8 +12,6 @@ export default function TabsLayout() {
       screenOptions={{
         headerTitle: '',
         headerShadowVisible: false,
-        // keep header for most screens (drawer + bell)
-        // headerShown: true,  // (default)
         headerLeft: () => <DrawerToggleButton />,
         headerRight: () => (
           <Pressable
@@ -66,13 +63,10 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 👉 Hide Tabs header ONLY on the notifications route */}
       <Tabs.Screen
         name="home/notification"
         options={{
           headerShown: false,
-          // optional: also hide the tab bar while viewing notifications
-          // tabBarStyle: { display: 'none' },
         }}
       />
     </Tabs>

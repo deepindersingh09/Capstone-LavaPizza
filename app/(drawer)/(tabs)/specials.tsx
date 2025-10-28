@@ -1,4 +1,3 @@
-// app/(drawer)/(tabs)/specials.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -14,8 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCart } from '../../context/CartContext';
 
+const CARD_BG = '#fff';
 
 // Pizza data structure
 const pizzas = [
@@ -79,6 +78,11 @@ export default function SpecialsScreen() {
   const [selectedSize, setSelectedSize] = useState(SIZES[1]); // Default to Medium
   const [quantity, setQuantity] = useState(1);
 
+  // Handle crust selection - Navigate to custom builder
+  const handleCrustClick = (crustId: string) => {
+    router.push(`/pizza/custom-builder?crust=${crustId}`);
+  };
+
   // Handle pizza card click
   const handlePizzaClick = (pizza: Pizza) => {
     setSelectedPizza(pizza);
@@ -90,36 +94,35 @@ export default function SpecialsScreen() {
 
   // Handle add to cart
   const handleAddToCart = () => {
-  // Check if pizza and size are selected
-  if (!selectedPizza || !selectedSize) {
-    Alert.alert('Error', 'Please select a size before adding to cart');
-    return;
-  }
+    if (!selectedPizza || !selectedSize) {
+      Alert.alert('Error', 'Please select a size before adding to cart');
+      return;
+    }
 
-  const totalPrice = selectedSize.price * quantity;
+    const totalPrice = selectedSize.price * quantity;
 
-  Alert.alert(
-    'Added to Cart! 🍕',
-    `${selectedPizza.name}\n${selectedSize.size} • ${selectedCrust} crust\nQuantity: ${quantity}\nTotal: $${totalPrice.toFixed(2)}`,
-    [
-      { text: 'Continue Shopping', onPress: () => setModalVisible(false) },
-      { 
-        text: 'View Cart', 
-        onPress: () => {
-          setModalVisible(false);
-          router.push('/(drawer)/(tabs)/cart');
-        }
-      },
-    ]
-  );
-};
-
+    Alert.alert(
+      'Added to Cart! 🍕',
+      `${selectedPizza.name}\n${selectedSize.size} • ${selectedCrust} crust\nQuantity: ${quantity}\nTotal: $${totalPrice.toFixed(2)}`,
+      [
+        { text: 'Continue Shopping', onPress: () => setModalVisible(false) },
+        { 
+          text: 'View Cart', 
+          onPress: () => {
+            setModalVisible(false);
+            router.push('/cart');
+          }
+        },
+      ]
+    );
+  };
+  
   // Calculate total price
   const totalPrice = selectedSize ? selectedSize.price * quantity : 0;
 
   const ListHeader = () => (
     <View style={styles.headerArea}>
-      {/* Crust Selection */}
+      {/* Crust Selection - CLICKABLE */}
       <Text style={styles.sectionTitle}>Create your own Pizza</Text>
       <ScrollView
         horizontal
@@ -127,10 +130,15 @@ export default function SpecialsScreen() {
         contentContainerStyle={styles.crustRow}
       >
         {crustOptions.map((item) => (
-          <View style={styles.crustItem} key={item.id}>
+          <TouchableOpacity 
+            key={item.id}
+            style={styles.crustItem}
+            onPress={() => handleCrustClick(item.id)}
+            activeOpacity={0.7}
+          >
             <Image source={item.image} style={styles.crustImage} />
             <Text style={styles.crustLabel}>{item.name}</Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
 
@@ -276,13 +284,13 @@ export default function SpecialsScreen() {
                   </View>
                 </View>
 
-                {/* Add to Cart Button */}
+                {/* Total & Add to Cart */}
                 <View style={styles.modalFooter}>
                   <View style={styles.totalInfo}>
                     <Text style={styles.totalLabel}>Total</Text>
                     <Text style={styles.totalPrice}>${totalPrice.toFixed(2)}</Text>
                   </View>
-                  <TouchableOpacity
+                  <TouchableOpacity 
                     style={styles.addToCartButton}
                     onPress={handleAddToCart}
                   >
@@ -290,8 +298,6 @@ export default function SpecialsScreen() {
                     <Text style={styles.addToCartText}>Add to Cart</Text>
                   </TouchableOpacity>
                 </View>
-
-                <View style={{ height: 20 }} />
               </ScrollView>
             )}
           </View>
@@ -301,24 +307,21 @@ export default function SpecialsScreen() {
   );
 }
 
-const CARD_BG = '#fafafa';
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFF7E6',
   },
 
-  // Header area
+  // Header section
   headerArea: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingTop: 12,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#222',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    paddingHorizontal: 16,
     marginTop: 12,
     marginBottom: 8,
   },
@@ -326,6 +329,7 @@ const styles = StyleSheet.create({
   // Crust chips row
   crustRow: {
     paddingVertical: 4,
+    paddingHorizontal: 16,
     gap: 14,
   },
   crustItem: {
