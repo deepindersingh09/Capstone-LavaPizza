@@ -29,10 +29,14 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "googleWebClientId": "898725473422-h5o07rea27deqfs5lhv05fitdk8qr38c.apps.googleusercontent.com"
     }
   }
 }
