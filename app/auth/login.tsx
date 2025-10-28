@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-// app/auth/login.tsx — Clean merged version ✅
-=======
-//app/auth/login.tsx — Enhanced Email/Password Login
->>>>>>> Stashed changes
+// app/auth/login.tsx — Fixed Guest Mode
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,7 +13,6 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  Image,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import {
@@ -35,16 +30,8 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-<<<<<<< Updated upstream
-
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing info', 'Enter email and password.');
-      return;
-    }
-
-=======
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
@@ -65,27 +52,17 @@ export default function Login() {
       return;
     }
 
->>>>>>> Stashed changes
     setBusy(true);
     try {
-      const cred = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password.trim()
-      );
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
 
       if (!cred.user.emailVerified) {
         await sendEmailVerification(cred.user);
         await signOut(auth);
         Alert.alert(
-<<<<<<< Updated upstream
-          'Email not verified',
-          'Verification link sent again. Please verify before logging in.'
-=======
           'Email Not Verified',
           'We sent a verification link to your email. Please verify your email address and try again.',
           [{ text: 'OK' }]
->>>>>>> Stashed changes
         );
         return;
       }
@@ -95,41 +72,22 @@ export default function Login() {
       if (cache) {
         const userData = JSON.parse(cache);
         await AsyncStorage.setItem('@user_first_name', userData.firstName || '');
-        if (userData.lastName)
-          await AsyncStorage.setItem('@user_last_name', userData.lastName);
-        Alert.alert('Welcome back!', `Hi ${userData.firstName}! 🍕`);
+        if (userData.lastName) await AsyncStorage.setItem('@user_last_name', userData.lastName);
       } else if (cred.user.displayName) {
         await AsyncStorage.setItem('@user_first_name', cred.user.displayName);
       } else {
         const first = email.split('@')[0];
         await AsyncStorage.setItem('@user_first_name', first);
-        Alert.alert('Welcome!', `Hi ${first}!`);
       }
 
-      await AsyncStorage.multiRemove([
-        '@guest_mode',
-        '@order_mode',
-      ]);
-
+      await AsyncStorage.removeItem('@guest_mode');
+      await AsyncStorage.removeItem('@order_mode');
+      
+      // Small delay to ensure storage is written
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       router.replace('/start');
     } catch (e: any) {
-<<<<<<< Updated upstream
-      let msg = 'Unable to sign in';
-      if (e.code === 'auth/user-not-found')
-        msg = 'No account found with this email. Please sign up first.';
-      else if (e.code === 'auth/wrong-password')
-        msg = 'Incorrect password.';
-      else if (e.code === 'auth/invalid-email')
-        msg = 'Please enter a valid email.';
-      else if (e.code === 'auth/user-disabled')
-        msg = 'This account has been disabled.';
-      else if (e.code === 'auth/too-many-requests')
-        msg = 'Too many attempts. Try again later.';
-      else if (e.code === 'auth/invalid-credential')
-        msg = 'Invalid email or password.';
-
-      Alert.alert('Sign in failed', msg);
-=======
       let msg = 'Unable to sign in. Please try again.';
       if (e.code === 'auth/user-not-found') {
         msg = 'No account found with this email address.';
@@ -147,14 +105,11 @@ export default function Login() {
         msg = 'Network error. Please check your connection.';
       }
       Alert.alert('Sign In Failed', msg);
->>>>>>> Stashed changes
     } finally {
       setBusy(false);
     }
   };
 
-<<<<<<< Updated upstream
-=======
   // ---- FORGOT PASSWORD ----
   const handleForgotPassword = async () => {
     if (!email) {
@@ -199,61 +154,59 @@ export default function Login() {
     );
   };
 
-  // ---- GUEST MODE ----
->>>>>>> Stashed changes
+  // ---- GUEST MODE (FIXED) ----
   const handleGuest = async () => {
+    setGuestLoading(true);
     try {
+      console.log('🔄 Starting guest mode setup...');
+      
+      // Clear all user-related data
       await AsyncStorage.multiRemove([
         '@order_mode',
         '@user_first_name',
         '@user_last_name',
       ]);
+      
+      console.log('✅ Cleared user data');
+      
+      // Set guest mode
       await AsyncStorage.setItem('@guest_mode', '1');
+      
+      console.log('✅ Guest mode set');
+      
+      // Verify it was set
+      const guestMode = await AsyncStorage.getItem('@guest_mode');
+      console.log('✅ Guest mode verified:', guestMode);
+      
+      // Small delay to ensure storage is written
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      // Navigate to start
+      console.log('🚀 Navigating to /start...');
       router.replace('/start');
-    } catch {
-      Alert.alert('Error', 'Failed to continue as guest.');
+      
+    } catch (error) {
+      console.error('❌ Error setting guest mode:', error);
+      Alert.alert(
+        'Error',
+        'Failed to continue as guest. Please try again.',
+        [
+          {
+            text: 'Retry',
+            onPress: handleGuest,
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ]
+      );
+    } finally {
+      setGuestLoading(false);
     }
   };
 
   return (
-<<<<<<< Updated upstream
-    <View style={styles.wrap}>
-      <Image
-        source={require('../../assets/images/logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-
-      <Text style={styles.title}>Welcome back,</Text>
-      <Text style={styles.subtitle}>Glad to see you!</Text>
-
-      <TextInput
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-      />
-
-      <View style={styles.passwordContainer}>
-        <TextInput
-          placeholder="Password"
-          secureTextEntry={!showPassword}
-          value={password}
-          onChangeText={setPassword}
-          style={[styles.input, { flex: 1, marginBottom: 0 }]}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons
-            name={showPassword ? 'eye-off' : 'eye'}
-            size={22}
-            color="#555"
-            style={{ marginLeft: -35 }}
-          />
-        </TouchableOpacity>
-      </View>
-=======
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -292,11 +245,10 @@ export default function Login() {
                     onFocus={() => setEmailFocused(true)}
                     onBlur={() => setEmailFocused(false)}
                     style={styles.input}
-                    editable={!busy}
+                    editable={!busy && !guestLoading}
                   />
                 </View>
               </View>
->>>>>>> Stashed changes
 
               {/* Password Input */}
               <View style={styles.inputContainer}>
@@ -314,12 +266,12 @@ export default function Login() {
                     onFocus={() => setPasswordFocused(true)}
                     onBlur={() => setPasswordFocused(false)}
                     style={[styles.input, styles.passwordInput]}
-                    editable={!busy}
+                    editable={!busy && !guestLoading}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
                     style={styles.eyeIcon}
-                    disabled={busy}
+                    disabled={busy || guestLoading}
                   >
                     <Ionicons
                       name={showPassword ? 'eye-outline' : 'eye-off-outline'}
@@ -330,32 +282,20 @@ export default function Login() {
                 </View>
               </View>
 
-<<<<<<< Updated upstream
-      <TouchableOpacity onPress={handleGuest} style={styles.guestBtn}>
-        <Text style={styles.guestText}>Continue as guest</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.footer}>
-        Don’t have an account?{' '}
-      <Link href="../select-role" style={styles.link}>Sign up</Link>
-
-      </Text>
-    </View>
-=======
               {/* Forgot Password */}
               <TouchableOpacity
                 onPress={handleForgotPassword}
                 style={styles.forgotButton}
-                disabled={busy}
+                disabled={busy || guestLoading}
               >
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
 
               {/* Sign In Button */}
               <TouchableOpacity
-                style={[styles.btn, busy && styles.btnDisabled]}
+                style={[styles.btn, (busy || guestLoading) && styles.btnDisabled]}
                 onPress={handleLogin}
-                disabled={busy}
+                disabled={busy || guestLoading}
                 activeOpacity={0.8}
               >
                 {busy ? (
@@ -372,15 +312,21 @@ export default function Login() {
                 <View style={styles.dividerLine} />
               </View>
 
-              {/* Guest Button */}
+              {/* Guest Button - Now with separate loading state */}
               <TouchableOpacity
                 onPress={handleGuest}
-                style={styles.guestBtn}
-                disabled={busy}
+                style={[styles.guestBtn, guestLoading && styles.guestBtnLoading]}
+                disabled={busy || guestLoading}
                 activeOpacity={0.8}
               >
-                <Ionicons name="person-outline" size={20} color="#F4B400" style={{ marginRight: 8 }} />
-                <Text style={styles.guestText}>Continue as Guest</Text>
+                {guestLoading ? (
+                  <ActivityIndicator color="#F4B400" />
+                ) : (
+                  <>
+                    <Ionicons name="person-outline" size={20} color="#F4B400" style={{ marginRight: 8 }} />
+                    <Text style={styles.guestText}>Continue as Guest</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -397,59 +343,10 @@ export default function Login() {
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
->>>>>>> Stashed changes
   );
 }
 
 const styles = StyleSheet.create({
-<<<<<<< Updated upstream
-  wrap: {
-    flex: 1,
-    backgroundColor: '#fff7e6',
-    padding: 24,
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
-    marginBottom: 15,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  subtitle: { marginBottom: 15, color: '#555', textAlign: 'center' },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  btn: {
-    backgroundColor: '#FFC107',
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { fontWeight: '700', fontSize: 16 },
-  guestBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 12 },
-  guestText: { fontWeight: '700', fontSize: 16, color: '#F4B400' },
-  footer: { textAlign: 'center', marginTop: 20, color: '#444' },
-  link: { fontWeight: '700', color: '#111' },
-});
-=======
   container: {
     flex: 1,
     backgroundColor: '#FFFBF5',
@@ -581,6 +478,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#FFE082',
   },
+  guestBtnLoading: {
+    opacity: 0.6,
+  },
   guestText: {
     fontWeight: '600',
     fontSize: 16,
@@ -603,4 +503,3 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
->>>>>>> Stashed changes
