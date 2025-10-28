@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { addToCart } from '../../lib/cartUtils';
 
 const TOPPINGS = [
@@ -42,7 +43,6 @@ export default function CustomPizzaBuilder() {
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(1);
 
-  // Calculate total price
   const calculatePrice = () => {
     const sizePrice = SIZES.find((s) => s.id === selectedSize)?.price || 0;
     const toppingsPrice = selectedToppings.reduce((total, toppingId) => {
@@ -52,7 +52,6 @@ export default function CustomPizzaBuilder() {
     return (sizePrice + toppingsPrice) * quantity;
   };
 
-  // Toggle topping selection
   const toggleTopping = (toppingId: string) => {
     setSelectedToppings((prev) =>
       prev.includes(toppingId)
@@ -61,7 +60,6 @@ export default function CustomPizzaBuilder() {
     );
   };
 
-  // Add to cart
   const handleAddToCart = async () => {
     try {
       const size = SIZES.find((s) => s.id === selectedSize);
@@ -81,19 +79,14 @@ export default function CustomPizzaBuilder() {
       const success = await addToCart(customPizza);
 
       if (success) {
-        console.log('Added to cart successfully');
-        
         Alert.alert('Success! 🍕', 'Your custom pizza has been added to cart!', [
-          {
-            text: 'Continue Shopping',
-            onPress: () => router.back(),
-          },
+          { text: 'Continue Shopping', onPress: () => router.back() },
           {
             text: 'View Cart',
             onPress: () => {
               try {
                 router.push('/(drawer)/(tabs)/cart');
-              } catch (e) {
+              } catch {
                 try {
                   router.push('/cart');
                 } catch (e2) {
@@ -116,18 +109,24 @@ export default function CustomPizzaBuilder() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Create Your Pizza</Text>
-          <Text style={styles.subtitle}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>Create Your Pizza</Text>
+          <Text style={styles.headerSub}>
             {crustType.charAt(0).toUpperCase() + crustType.slice(1)} Crust
           </Text>
         </View>
+        <View style={{ width: 24 }} />
+      </View>
 
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Size Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Choose Size</Text>
@@ -135,10 +134,11 @@ export default function CustomPizzaBuilder() {
             <TouchableOpacity
               key={size.id}
               style={[
-                styles.sizeOption,
-                selectedSize === size.id && styles.selectedOption,
+                styles.cardRow,
+                selectedSize === size.id && styles.cardRowSelected,
               ]}
               onPress={() => setSelectedSize(size.id)}
+              activeOpacity={0.8}
             >
               <Text style={styles.optionName}>{size.name}</Text>
               <Text style={styles.optionPrice}>${size.price.toFixed(2)}</Text>
@@ -146,135 +146,159 @@ export default function CustomPizzaBuilder() {
           ))}
         </View>
 
-        {/* Toppings Selection */}
+        {/* Toppings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             Choose Toppings ({selectedToppings.length} selected)
           </Text>
           <View style={styles.toppingsGrid}>
-            {TOPPINGS.map((topping) => (
-              <TouchableOpacity
-                key={topping.id}
-                style={[
-                  styles.toppingCard,
-                  selectedToppings.includes(topping.id) && styles.selectedTopping,
-                ]}
-                onPress={() => toggleTopping(topping.id)}
-              >
-                <Text style={styles.toppingEmoji}>{topping.emoji}</Text>
-                <Text style={styles.toppingName}>{topping.name}</Text>
-                <Text style={styles.toppingPrice}>+${topping.price.toFixed(2)}</Text>
-                {selectedToppings.includes(topping.id) && (
-                  <View style={styles.checkmark}>
-                    <Text style={styles.checkmarkText}>✓</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
+            {TOPPINGS.map((topping) => {
+              const selected = selectedToppings.includes(topping.id);
+              return (
+                <TouchableOpacity
+                  key={topping.id}
+                  style={[styles.toppingCard, selected && styles.toppingCardSelected]}
+                  onPress={() => toggleTopping(topping.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.toppingEmoji}>{topping.emoji}</Text>
+                  <Text style={styles.toppingName}>{topping.name}</Text>
+                  <Text style={styles.toppingPrice}>+${topping.price.toFixed(2)}</Text>
+                  {selected && (
+                    <View style={styles.checkmark}>
+                      <Ionicons name="checkmark" size={16} color="#fff" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
         {/* Quantity */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quantity</Text>
-          <View style={styles.quantityContainer}>
+          <View style={styles.qtyWrap}>
             <TouchableOpacity
-              style={styles.quantityButton}
+              style={styles.qtyBtn}
               onPress={() => setQuantity(Math.max(1, quantity - 1))}
+              activeOpacity={0.8}
             >
-              <Text style={styles.quantityButtonText}>−</Text>
+              <Text style={styles.qtyBtnText}>−</Text>
             </TouchableOpacity>
-            <Text style={styles.quantityText}>{quantity}</Text>
+            <Text style={styles.qtyValue}>{quantity}</Text>
             <TouchableOpacity
-              style={styles.quantityButton}
+              style={styles.qtyBtn}
               onPress={() => setQuantity(quantity + 1)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.quantityButtonText}>+</Text>
+              <Text style={styles.qtyBtnText}>+</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Price Summary */}
-        <View style={styles.summary}>
-          <Text style={styles.summaryLabel}>Total Price:</Text>
-          <Text style={styles.summaryPrice}>${calculatePrice().toFixed(2)}</Text>
+        {/* Summary */}
+        <View style={styles.summaryBox}>
+          <Text style={styles.summaryLabel}>Total Price</Text>
+          <Text style={styles.summaryValue}>${calculatePrice().toFixed(2)}</Text>
         </View>
 
-        {/* Add to Cart Button */}
-        <TouchableOpacity style={styles.addButton} onPress={handleAddToCart}>
+        {/* Add to Cart */}
+        <TouchableOpacity style={styles.addButton} onPress={handleAddToCart} activeOpacity={0.85}>
           <Text style={styles.addButtonText}>
-            Add to Cart - ${calculatePrice().toFixed(2)}
+            Add to Cart — ${calculatePrice().toFixed(2)}
           </Text>
+          <Ionicons name="cart" size={18} color="#1A1A1A" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
 
-        <View style={{ height: 30 }} />
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  // Layout / base
   container: {
     flex: 1,
-    backgroundColor: '#FFF7E6',
+    backgroundColor: '#F8F8F8',
   },
+  scrollView: {
+    paddingHorizontal: 16,
+  },
+
+  // Header (matches cart.tsx look)
   header: {
-    padding: 20,
-    backgroundColor: '#E53935',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
   },
   backButton: {
-    marginBottom: 10,
+    padding: 6,
+    borderRadius: 8,
   },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 2,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 5,
-    color: '#fff',
+  headerSub: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-  },
+
+  // Sections
   section: {
-    padding: 20,
+    marginTop: 16,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 15,
-    color: '#111',
+    color: '#1A1A1A',
+    marginBottom: 12,
+    paddingHorizontal: 2,
   },
-  sizeOption: {
+
+  // Card rows (size options)
+  cardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: '#eee',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  selectedOption: {
-    borderColor: '#E53935',
-    backgroundColor: '#fff5f5',
+  cardRowSelected: {
+    borderColor: '#FFC107',
+    backgroundColor: '#FFFBF5',
   },
   optionName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111',
+    color: '#1A1A1A',
   },
   optionPrice: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#E53935',
+    color: '#FFC107',
   },
+
+  // Toppings grid
   toppingsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -283,17 +307,23 @@ const styles = StyleSheet.create({
   toppingCard: {
     width: '48%',
     backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginBottom: 12,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#eee',
+    borderWidth: 1.5,
+    borderColor: '#E8E8E8',
     position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  selectedTopping: {
-    borderColor: '#E53935',
-    backgroundColor: '#fff5f5',
+  toppingCardSelected: {
+    borderColor: '#FFC107',
+    backgroundColor: '#FFFBF5',
   },
   toppingEmoji: {
     fontSize: 40,
@@ -301,10 +331,10 @@ const styles = StyleSheet.create({
   },
   toppingName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 4,
-    color: '#111',
   },
   toppingPrice: {
     fontSize: 12,
@@ -312,75 +342,91 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: '#E53935',
+    top: 8,
+    right: 8,
+    backgroundColor: '#FFC107',
     borderRadius: 12,
     width: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkmarkText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  quantityContainer: {
+
+  // Quantity
+  qtyWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 20,
+    gap: 18,
   },
-  quantityButton: {
-    backgroundColor: '#E53935',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  qtyBtn: {
+    backgroundColor: '#FFC107',
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#FFC107',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  quantityButtonText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
+  qtyBtnText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1A1A1A',
   },
-  quantityText: {
-    fontSize: 24,
-    fontWeight: '700',
-    minWidth: 40,
+  qtyValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    minWidth: 32,
     textAlign: 'center',
-    color: '#111',
   },
-  summary: {
+
+  // Summary
+  summaryBox: {
+    backgroundColor: '#FFFBF5',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    borderWidth: 1.5,
+    borderColor: '#FFE082',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    borderRadius: 10,
   },
   summaryLabel: {
-    fontSize: 18,
+    fontSize: 16,
+    color: '#666',
     fontWeight: '600',
-    color: '#111',
   },
-  summaryPrice: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#E53935',
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFC107',
   },
+
+  // CTA
   addButton: {
-    backgroundColor: '#E53935',
-    margin: 20,
-    padding: 18,
+    backgroundColor: '#FFC107',
+    marginTop: 14,
+    marginBottom: 16,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    shadowColor: '#FFC107',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   addButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1A1A1A',
   },
 });
