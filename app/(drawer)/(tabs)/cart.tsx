@@ -1,39 +1,121 @@
-import { router } from "expo-router";
-import React from "react";
-import { MaterialIcons, Ionicons } from "@expo/vector-icons";
+// app/(drawer)/(tabs)/cart.tsx
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
+  TouchableOpacity,
   Alert,
+  SafeAreaView,
   ActivityIndicator,
-} from "react-native";
-import { useCart } from "../../context/CartContext";
+} from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function Cart() {
-  const { items, updateQuantity, removeItem, getTotal, isLoading } = useCart();
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  size?: string;
+  crust?: string;
+  type?: string;
+  toppings?: string[];
+  details?: string[];
+}
+
+export default function CartScreen() {
+  const router = useRouter();
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load cart when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadCart();
+    }, [])
+  );
+
+  const loadCart = async () => {
+    try {
+      const cartData = await AsyncStorage.getItem('@cart');
+      const cart = cartData ? JSON.parse(cartData) : [];
+      setCartItems(cart);
+      console.log('Cart loaded:', cart);
+    } catch (error) {
+      console.error('Error loading cart:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateQuantity = async (id: string, newQuantity: number) => {
+    try {
+      const updatedCart = cartItems.map((item) =>
+        item.id === id ? { ...item, quantity: newQuantity } : item
+      );
+      await AsyncStorage.setItem('@cart', JSON.stringify(updatedCart));
+      setCartItems(updatedCart);
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      Alert.alert('Error', 'Failed to update quantity');
+    }
+  };
 
   const increaseQty = (id: string) => {
-    const item = items.find((i) => i.id === id);
+    const item = cartItems.find((i) => i.id === id);
     if (item) updateQuantity(id, item.quantity + 1);
   };
 
   const decreaseQty = (id: string) => {
-    const item = items.find((i) => i.id === id);
+    const item = cartItems.find((i) => i.id === id);
     if (item && item.quantity > 1) updateQuantity(id, item.quantity - 1);
   };
 
-  const handleRemove = (id: string, name: string) => {
+  const handleRemove = async (id: string, name: string) => {
     Alert.alert(
-      "Remove Item",
+      'Remove Item',
       `Remove ${name} from cart?`,
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Remove", style: "destructive", onPress: () => removeItem(id) },
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const newCart = cartItems.filter((item) => item.id !== id);
+              await AsyncStorage.setItem('@cart', JSON.stringify(newCart));
+              setCartItems(newCart);
+            } catch (error) {
+              console.error('Error removing item:', error);
+              Alert.alert('Error', 'Failed to remove item');
+            }
+          },
+        },
       ]
     );
+  };
+
+  const getTotal = () => {
+    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      Alert.alert('Cart Empty', 'Add some pizzas first!');
+      return;
+    }
+
+    const total = subtotal + tax;
+    
+    try {
+      router.push(`/checkout?total=${total.toFixed(2)}`);
+    } catch (e) {
+      console.error('Navigation error:', e);
+      Alert.alert('Error', 'Could not navigate to checkout');
+    }
   };
 
   const subtotal = getTotal();
@@ -42,54 +124,80 @@ export default function Cart() {
 
   if (isLoading) {
     return (
-      <View style={styles.emptyContainer}>
-        <ActivityIndicator size="large" color="#FFC107" />
-        <Text style={styles.emptyText}>Loading cart...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color="#FFC107" />
+          <Text style={styles.loadingText}>Loading cart...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  if (items.length === 0) {
+  if (cartItems.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="cart-outline" size={80} color="#E8E8E8" />
-        <Text style={styles.emptyTitle}>Your cart is empty</Text>
-        <Text style={styles.emptySubtext}>Add items to get started</Text>
-        <TouchableOpacity
-          style={styles.shopButton}
-          onPress={() => router.push("/(drawer)/(tabs)/home")}
-        >
-          <Text style={styles.shopButtonText}>Start Shopping</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="cart-outline" size={80} color="#E8E8E8" />
+          <Text style={styles.emptyTitle}>Your cart is empty</Text>
+          <Text style={styles.emptySubtext}>Add some delicious pizzas to get started!</Text>
+          <TouchableOpacity
+            style={styles.shopButton}
+            onPress={() => {
+              try {
+                router.push('/(drawer)/(tabs)/home');
+              } catch (e) {
+                router.push('/home');
+              }
+            }}
+          >
+            <Text style={styles.shopButtonText}>Start Shopping</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>My Cart</Text>
-          <Text style={styles.itemCount}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
+          <Text style={styles.itemCount}>
+            {cartItems.length} {cartItems.length === 1 ? 'item' : 'items'}
+          </Text>
         </View>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="close" size={28} color="#1A1A1A" />
         </TouchableOpacity>
       </View>
 
-      {/* Cart Items */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {items.map((item) => (
+        {cartItems.map((item) => (
           <View key={item.id} style={styles.cartItem}>
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.name}</Text>
+              
               {item.size && (
                 <View style={styles.sizeContainer}>
                   <Text style={styles.itemDetail}>Size: {item.size}</Text>
                 </View>
               )}
+
+              {item.crust && (
+                <Text style={styles.itemDetail}>
+                  {item.crust.charAt(0).toUpperCase() + item.crust.slice(1)} Crust
+                </Text>
+              )}
+              
               <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+
+              {item.type === 'custom' && item.toppings && item.toppings.length > 0 && (
+                <View style={styles.detailsContainer}>
+                  <Text style={styles.itemDetail}>
+                    Toppings: {item.toppings.join(', ')}
+                  </Text>
+                </View>
+              )}
 
               {item.details && item.details.length > 0 && (
                 <View style={styles.detailsContainer}>
@@ -102,7 +210,6 @@ export default function Cart() {
               )}
             </View>
 
-            {/* Quantity Controls */}
             <View style={styles.rightSection}>
               <View style={styles.qtyContainer}>
                 <TouchableOpacity 
@@ -124,12 +231,10 @@ export default function Cart() {
                 </TouchableOpacity>
               </View>
 
-              {/* Item Total */}
               <Text style={styles.itemTotal}>
                 ${(item.price * item.quantity).toFixed(2)}
               </Text>
 
-              {/* Delete */}
               <TouchableOpacity 
                 style={styles.deleteButton}
                 onPress={() => handleRemove(item.id, item.name)}
@@ -141,11 +246,9 @@ export default function Cart() {
           </View>
         ))}
 
-        {/* Add some bottom padding */}
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Footer */}
       <View style={styles.footer}>
         <View style={styles.summaryBox}>
           <View style={styles.summaryRow}>
@@ -165,46 +268,46 @@ export default function Cart() {
 
         <TouchableOpacity 
           style={styles.checkoutButton} 
-          onPress={() => router.push("/checkout")}
+          onPress={handleCheckout}
           activeOpacity={0.8}
         >
           <Text style={styles.checkoutText}>Proceed to Checkout</Text>
           <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFBF5",
-    paddingTop: 40,
+    backgroundColor: "#F8F8F8",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
+    fontWeight: "500",
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFBF5",
-    padding: 24,
+    paddingHorizontal: 40,
   },
   emptyTitle: {
     fontSize: 24,
     fontWeight: "700",
     color: "#1A1A1A",
-    marginTop: 24,
+    marginTop: 20,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 16,
     color: "#666",
-    marginBottom: 32,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#666",
-    marginTop: 16,
+    marginBottom: 30,
+    textAlign: "center",
   },
   shopButton: {
     backgroundColor: "#FFC107",
@@ -227,7 +330,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingVertical: 16,
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E8E8E8",
   },
@@ -307,11 +411,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     justifyContent: "center",
     alignItems: "center",
-  },
-  qtyText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1A1A1A",
   },
   qtyValue: {
     marginHorizontal: 12,

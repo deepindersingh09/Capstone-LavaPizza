@@ -1,4 +1,3 @@
-// app/(drawer)/(tabs)/_layout.tsx
 import React from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Pressable } from 'react-native';
@@ -66,11 +65,15 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Hide Tabs header on notifications */}
       <Tabs.Screen
         name="home/notification"
-        options={{ headerShown: false }}
+        options={{
+          headerShown: false,
+        }}
       />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="settings/profile-details" options={{ href: null }} />
+
     </Tabs>
   );
 }

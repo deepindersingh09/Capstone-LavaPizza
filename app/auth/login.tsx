@@ -1,3 +1,4 @@
+// app/auth/login.tsx - DEBUGGED VERSION with detailed error logging
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -39,37 +40,94 @@ export default function Login() {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleLogin = async () => {
+    console.log('🔵 Login attempt started');
+    console.log('Email:', email);
+    console.log('Auth object:', auth ? 'Exists' : 'NULL');
+    
     if (!email || !password) {
       Alert.alert('Missing Info', 'Enter both email & password');
       return;
     }
+    
     if (!isValidEmail(email.trim())) {
       Alert.alert('Invalid Email', 'Enter a valid email');
       return;
     }
+
+    // Check if auth is initialized
+    if (!auth) {
+      Alert.alert(
+        'Configuration Error',
+        'Firebase Auth is not initialized. Please check your Firebase configuration in lib/firebase.ts'
+      );
+      console.error('❌ Firebase auth is null or undefined');
+      return;
+    }
+
     setBusy(true);
 
     try {
+      console.log('🟡 Attempting Firebase sign in...');
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      console.log('✅ Sign in successful!', cred.user.email);
 
+      // Check email verification
       if (!cred.user.emailVerified) {
+        console.log('⚠️ Email not verified, sending verification email');
         await sendEmailVerification(cred.user);
         await signOut(auth);
         Alert.alert(
           'Email not verified',
-          'We sent a new verification link. Check inbox!'
+          'We sent a new verification link. Check inbox!',
+          [{ text: 'OK' }]
         );
+        setBusy(false);
         return;
       }
 
+      console.log('🟢 Email verified, proceeding to save user data');
+
+      // Clear guest mode
       await AsyncStorage.multiRemove(['@guest_mode', '@order_mode']);
+      console.log('✅ Guest mode cleared');
+
+      // Save user data
+      const displayName = cred.user.displayName || email.split('@')[0];
+      await AsyncStorage.setItem('@user_first_name', displayName);
+      console.log('✅ User data saved to AsyncStorage');
+
+      console.log('🔵 Navigating to /start');
       router.replace('/start');
+
     } catch (e: any) {
-      let msg = 'Unable to sign in';
-      if (e.code === 'auth/user-not-found') msg = 'User not found';
-      if (e.code === 'auth/wrong-password') msg = 'Wrong password';
-      if (e.code === 'auth/invalid-email') msg = 'Invalid email format';
-      Alert.alert('Sign In Failed', msg);
+      console.error('❌ Login error:', e);
+      console.error('Error code:', e.code);
+      console.error('Error message:', e.message);
+      console.error('Full error:', JSON.stringify(e, null, 2));
+
+      let msg = 'Unable to sign in. Please check console for details.';
+      
+      if (e.code === 'auth/user-not-found') {
+        msg = 'No account found with this email. Please sign up first.';
+      } else if (e.code === 'auth/wrong-password') {
+        msg = 'Incorrect password. Please try again.';
+      } else if (e.code === 'auth/invalid-email') {
+        msg = 'Invalid email format.';
+      } else if (e.code === 'auth/user-disabled') {
+        msg = 'This account has been disabled.';
+      } else if (e.code === 'auth/too-many-requests') {
+        msg = 'Too many failed attempts. Please try again later or reset your password.';
+      } else if (e.code === 'auth/invalid-credential') {
+        msg = 'Invalid email or password. Please check your credentials.';
+      } else if (e.code === 'auth/network-request-failed') {
+        msg = 'Network error. Please check your internet connection.';
+      } else if (e.code === 'auth/configuration-not-found') {
+        msg = 'Firebase configuration error. Please check Firebase setup.';
+      } else if (e.message.includes('Firebase')) {
+        msg = `Firebase Error: ${e.message}`;
+      }
+
+      Alert.alert('Sign In Failed', msg + '\n\nCheck console for more details.');
     } finally {
       setBusy(false);
     }
@@ -80,15 +138,21 @@ export default function Login() {
       Alert.alert('Enter Email', 'Enter email first');
       return;
     }
+    if (!isValidEmail(email.trim())) {
+      Alert.alert('Invalid Email', 'Enter a valid email');
+      return;
+    }
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      Alert.alert('Email Sent', 'Check inbox');
-    } catch {
-      Alert.alert('Error', 'Failed to send reset email');
+      Alert.alert('Email Sent', 'Check inbox for password reset link');
+    } catch (e: any) {
+      console.error('Password reset error:', e);
+      Alert.alert('Error', e.message || 'Failed to send reset email');
     }
   };
 
   const handleGuest = async () => {
+    console.log('🔵 Guest mode selected');
     setGuestLoading(true);
     try {
       await AsyncStorage.multiRemove([
@@ -97,8 +161,10 @@ export default function Login() {
         '@user_last_name',
       ]);
       await AsyncStorage.setItem('@guest_mode', '1');
+      console.log('✅ Guest mode set');
       router.replace('/start');
-    } catch {
+    } catch (e) {
+      console.error('❌ Guest mode error:', e);
       Alert.alert('Error', 'Try again');
     } finally {
       setGuestLoading(false);
@@ -111,9 +177,11 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled">
-
+        <ScrollView 
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Image
             source={require('../../assets/images/logo.png')}
             style={styles.logo}
@@ -133,6 +201,7 @@ export default function Login() {
               placeholderTextColor="#999"
               style={styles.input}
               autoCapitalize="none"
+              keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
               onFocus={() => setEmailFocused(true)}
@@ -176,8 +245,13 @@ export default function Login() {
           <TouchableOpacity
             style={[styles.btn, (busy || guestLoading) && styles.disabled]}
             disabled={busy || guestLoading}
-            onPress={handleLogin}>
-            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Sign In</Text>}
+            onPress={handleLogin}
+          >
+            {busy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.btnText}>Sign In</Text>
+            )}
           </TouchableOpacity>
 
           {/* Guest */}
@@ -198,7 +272,7 @@ export default function Login() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              Don’t have an account?{' '}
+              Don't have an account?{' '}
               <Link href="/auth/select-role" style={styles.link}>Sign Up</Link>
             </Text>
           </View>
@@ -271,4 +345,18 @@ const styles = StyleSheet.create({
   footer: { marginTop: 22, alignItems: 'center', paddingBottom: 10 },
   footerText: { fontSize: 15, color: '#444' },
   link: { fontWeight: '900', color: '#f8a831' },
+
+  debugBox: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
 });
