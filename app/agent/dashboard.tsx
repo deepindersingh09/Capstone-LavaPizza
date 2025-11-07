@@ -8,10 +8,12 @@ import {
   SafeAreaView,
   StatusBar,
 } from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 export default function Dashboard() {
+  const userName = "John Doe"; // dynamically replace this later with logged-in user’s name
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -28,16 +30,12 @@ export default function Dashboard() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContainer}
       >
-        {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View>
-            <Text style={styles.profileName}>John Doe</Text>
-            <Text style={styles.profileText}>+1 234 567 890</Text>
-            <Text style={styles.profileText}>Vehicle: PB10-AB-2345</Text>
-          </View>
-          <TouchableOpacity style={styles.editBtn}>
-            <MaterialIcons name="edit" size={18} color="#fff" />
-          </TouchableOpacity>
+        {/* Welcome Message */}
+        <View style={styles.welcomeContainer}>
+          <Text style={styles.welcomeText}>Welcome, {userName} 👋</Text>
+          <Text style={styles.subWelcome}>
+            Ready for your next delivery today?
+          </Text>
         </View>
 
         {/* Active Deliveries */}
@@ -134,31 +132,18 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
   },
-  profileCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  welcomeContainer: {
     marginBottom: 20,
   },
-  profileName: {
+  welcomeText: {
+    fontSize: 20,
     fontWeight: "700",
-    fontSize: 16,
+    color: "#222",
   },
-  profileText: {
-    color: "#555",
-    fontSize: 13,
-  },
-  editBtn: {
-    backgroundColor: "#f8a831",
-    padding: 8,
-    borderRadius: 8,
+  subWelcome: {
+    fontSize: 14,
+    color: "#777",
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 16,
