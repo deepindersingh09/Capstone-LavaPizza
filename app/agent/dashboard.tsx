@@ -9,11 +9,13 @@ import {
   StatusBar,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 export default function Dashboard() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
       {/* Header */}
       <View style={styles.header}>
         <Ionicons name="menu" size={24} color="#000" />
@@ -21,6 +23,7 @@ export default function Dashboard() {
         <Ionicons name="notifications-outline" size={22} color="#000" />
       </View>
 
+      {/* Scrollable Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContainer}
@@ -85,12 +88,23 @@ export default function Dashboard() {
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation Placeholder */}
+      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Ionicons name="home" size={24} color="#f8a831" />
-        <Ionicons name="bicycle" size={24} color="#999" />
-        <Ionicons name="wallet" size={24} color="#999" />
-        <Ionicons name="person" size={24} color="#999" />
+        <TouchableOpacity onPress={() => router.push("/agent/dashboard")}>
+          <Ionicons name="home" size={26} color="#f8a831" />
+        </TouchableOpacity>
+
+        <TouchableOpacity>
+          <Ionicons name="bicycle" size={26} color="#999" />
+        </TouchableOpacity>
+
+        <TouchableOpacity>
+          <Ionicons name="wallet" size={26} color="#999" />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/agent/profile")}>
+          <Ionicons name="person" size={26} color="#999" />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -118,7 +132,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     padding: 16,
-    paddingBottom: 90,
+    paddingBottom: 100,
   },
   profileCard: {
     backgroundColor: "#fff",
@@ -150,7 +164,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 8,
-    marginTop: 4,
     color: "#333",
   },
   card: {
@@ -248,7 +261,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     backgroundColor: "#fff",
     borderTopWidth: 0.5,
     borderColor: "#ddd",
