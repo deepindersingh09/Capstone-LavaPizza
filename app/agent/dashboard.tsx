@@ -96,7 +96,7 @@ export default function Dashboard() {
           <Ionicons name="bicycle" size={26} color="#999" />
         </TouchableOpacity>
 
-        <TouchableOpacity>
+        <TouchableOpacity onPress={()=>router.push("/agent/earnings")}>
           <Ionicons name="wallet" size={26} color="#999" />
         </TouchableOpacity>
 
