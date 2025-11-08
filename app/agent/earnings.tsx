@@ -201,5 +201,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: "#eee",
     elevation: 8,
+    color:"#333333333"
   },
 });
