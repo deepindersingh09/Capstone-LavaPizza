@@ -3,194 +3,164 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
-  Switch,
+  ScrollView,
   TextInput,
+  Image,
+  Switch,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 
 export default function Profile() {
-  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [profile, setProfile] = useState({
+    name: "Rohit Kumar",
+    email: "rohit.agent@example.com",
+    phone: "+91 9876543210",
+    location: "Ludhiana, Punjab",
+  });
 
-  // ---------- States ----------
-  const [availability, setAvailability] = useState(false);
-  const [selectedDay, setSelectedDay] = useState("Monday");
-  const [startTime, setStartTime] = useState("09:00 AM");
-  const [endTime, setEndTime] = useState("05:00 PM");
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [quietHours, setQuietHours] = useState(false);
-  const [pushDeals, setPushDeals] = useState(false);
-  const [feedback, setFeedback] = useState("");
+  const handleEditToggle = () => setIsEditing(!isEditing);
 
-  // ---------- Days for availability ----------
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const handleSaveProfile = () => {
+    setIsEditing(false);
+    Alert.alert("Profile Updated", "Your changes have been saved successfully.");
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: () => router.replace("/auth/signup-delivery"),
+      },
+    ]);
+  };
 
   return (
     <View style={styles.container}>
-      {/* --- Top Navbar --- */}
+      {/* --- Header --- */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+        <Text style={styles.topTitle}>My Profile</Text>
+        <TouchableOpacity onPress={handleEditToggle}>
+          <Ionicons
+            name={isEditing ? "close-outline" : "create-outline"}
+            size={24}
+            color="#333"
+          />
         </TouchableOpacity>
-        <Text style={styles.topTitle}>Profile Settings</Text>
-        <Ionicons name="settings-outline" size={24} color="#333" />
       </View>
 
+      {/* --- Profile Info --- */}
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* ----------------- EDIT AVAILABILITY ----------------- */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Edit Availability</Text>
-          <View style={styles.rowBetween}>
-            <Text style={styles.label}>Available for orders</Text>
-            <Switch
-              value={availability}
-              onValueChange={setAvailability}
-              trackColor={{ true: "#f8a831", false: "#ccc" }}
-            />
+        <View style={styles.profileCard}>
+          <Image
+            source={{
+              uri: "https://cdn-icons-png.flaticon.com/512/219/219983.png",
+            }}
+            style={styles.avatar}
+          />
+          <View style={styles.infoContainer}>
+            {isEditing ? (
+              <>
+                <TextInput
+                  style={styles.input}
+                  value={profile.name}
+                  onChangeText={(t) => setProfile({ ...profile, name: t })}
+                />
+                <TextInput
+                  style={styles.input}
+                  value={profile.email}
+                  onChangeText={(t) => setProfile({ ...profile, email: t })}
+                />
+                <TextInput
+                  style={styles.input}
+                  value={profile.phone}
+                  onChangeText={(t) => setProfile({ ...profile, phone: t })}
+                />
+                <TextInput
+                  style={styles.input}
+                  value={profile.location}
+                  onChangeText={(t) => setProfile({ ...profile, location: t })}
+                />
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile}>
+                  <Text style={styles.saveText}>Save Profile</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.name}>{profile.name}</Text>
+                <Text style={styles.detail}>{profile.email}</Text>
+                <Text style={styles.detail}>{profile.phone}</Text>
+                <Text style={styles.detail}>{profile.location}</Text>
+              </>
+            )}
           </View>
-
-          {availability && (
-            <View style={{ marginTop: 10 }}>
-              <Text style={styles.label}>Select Day</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {days.map((day) => (
-                  <TouchableOpacity
-                    key={day}
-                    onPress={() => setSelectedDay(day)}
-                    style={[
-                      styles.dayButton,
-                      selectedDay === day && styles.dayButtonActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.dayText,
-                        selectedDay === day && styles.dayTextActive,
-                      ]}
-                    >
-                      {day}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <View style={styles.timeRow}>
-                <View style={styles.timeBox}>
-                  <Text style={styles.subLabel}>Start Time</Text>
-                  <TextInput
-                    value={startTime}
-                    onChangeText={setStartTime}
-                    style={styles.timeInput}
-                  />
-                </View>
-                <View style={styles.timeBox}>
-                  <Text style={styles.subLabel}>End Time</Text>
-                  <TextInput
-                    value={endTime}
-                    onChangeText={setEndTime}
-                    style={styles.timeInput}
-                  />
-                </View>
-              </View>
-
-              <Text style={[styles.subLabel, { marginTop: 10 }]}>
-                Location-based availability
-              </Text>
-              <TouchableOpacity style={styles.secondaryBtn}>
-                <Ionicons name="location-outline" size={18} color="#fff" />
-                <Text style={styles.secondaryText}>Use Current Location</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
-        {/* ----------------- NOTIFICATION SETTINGS ----------------- */}
-        <View style={styles.card}>
+        {/* --- Availability --- */}
+        <View style={styles.section}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>Availability</Text>
+            <Switch
+              value={isAvailable}
+              onValueChange={setIsAvailable}
+              trackColor={{ false: "#ccc", true: "#f8a831" }}
+              thumbColor={isAvailable ? "#fff" : "#f4f3f4"}
+            />
+          </View>
+          <Text style={styles.sectionDesc}>
+            {isAvailable
+              ? "You are currently available for delivery orders."
+              : "You are currently offline."}
+          </Text>
+        </View>
+
+        {/* --- Notification Settings --- */}
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notification Settings</Text>
-
-          <View style={styles.rowBetween}>
-            <Text style={styles.label}>Enable Notifications</Text>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ true: "#f8a831", false: "#ccc" }}
-            />
-          </View>
-
-          <View style={styles.rowBetween}>
-            <Text style={styles.label}>Set Quiet Hours</Text>
-            <Switch
-              value={quietHours}
-              onValueChange={setQuietHours}
-              trackColor={{ true: "#f8a831", false: "#ccc" }}
-            />
-          </View>
-
-          <View style={styles.rowBetween}>
-            <Text style={styles.label}>Exclusive Deals & Promotions</Text>
-            <Switch
-              value={pushDeals}
-              onValueChange={setPushDeals}
-              trackColor={{ true: "#f8a831", false: "#ccc" }}
-            />
-          </View>
-
-          <TouchableOpacity style={[styles.secondaryBtn, { marginTop: 12 }]}>
-            <Ionicons name="calendar-outline" size={18} color="#fff" />
-            <Text style={styles.secondaryText}>
-              Integrate with Calendar App
-            </Text>
+          <Text style={styles.sectionDesc}>
+            Manage alerts and reminders for orders and updates.
+          </Text>
+          <TouchableOpacity style={styles.settingBtn}>
+            <Ionicons name="notifications-outline" size={22} color="#f8a831" />
+            <Text style={styles.settingText}>Customize Notifications</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ----------------- SUPPORT & HELP CENTER ----------------- */}
-        <View style={styles.card}>
+        {/* --- Help & Support --- */}
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support & Help Center</Text>
-
-          <TouchableOpacity style={styles.supportItem}>
-            <Ionicons name="chatbubbles-outline" size={20} color="#f8a831" />
-            <Text style={styles.supportText}>24/7 Live Chat Support</Text>
+          <TouchableOpacity style={styles.settingBtn}>
+            <Ionicons name="chatbubbles-outline" size={22} color="#f8a831" />
+            <Text style={styles.settingText}>Live Chat Support</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.supportItem}>
-            <Ionicons name="book-outline" size={20} color="#f8a831" />
-            <Text style={styles.supportText}>FAQ & Troubleshooting Tips</Text>
+          <TouchableOpacity style={styles.settingBtn}>
+            <Ionicons name="help-circle-outline" size={22} color="#f8a831" />
+            <Text style={styles.settingText}>FAQ & Tutorials</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.supportItem}>
-            <Ionicons name="videocam-outline" size={20} color="#f8a831" />
-            <Text style={styles.supportText}>Video Tutorials</Text>
-          </TouchableOpacity>
-
-          <View style={{ marginTop: 12 }}>
-            <Text style={styles.subLabel}>Submit Feedback</Text>
-            <TextInput
-              placeholder="Write your feedback here..."
-              value={feedback}
-              onChangeText={setFeedback}
-              style={styles.feedbackInput}
-              multiline
-            />
-            <TouchableOpacity style={styles.submitBtn}>
-              <Text style={styles.submitText}>Submit Feedback</Text>
-            </TouchableOpacity>
-          </View>
         </View>
+
+        {/* --- Logout Button --- */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={22} color="#fff" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* --- Bottom Navigation --- */}
+      {/* --- Bottom Nav --- */}
       <View style={styles.bottomBar}>
         <TouchableOpacity onPress={() => router.push("/agent/dashboard")}>
           <Ionicons name="home-outline" size={24} color="#333" />
         </TouchableOpacity>
-
         <TouchableOpacity>
           <MaterialIcons name="delivery-dining" size={26} color="#333" />
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => router.push("/agent/profile")}>
+        <TouchableOpacity>
           <Ionicons name="person" size={26} color="#f8a831" />
         </TouchableOpacity>
       </View>
@@ -198,115 +168,84 @@ export default function Profile() {
   );
 }
 
-// ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff9ed" },
   topBar: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#f0e249",
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: "#f0e249",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    elevation: 4,
+    elevation: 5,
   },
   topTitle: { fontSize: 18, fontWeight: "700", color: "#333" },
-  scroll: { padding: 20, paddingBottom: 90 },
-
-  card: {
+  scroll: { padding: 20, paddingBottom: 100 },
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 16,
     marginBottom: 16,
-    borderWidth: 1,
+    elevation: 3,
     borderColor: "#ffe38f",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 8,
-  },
-  label: { fontSize: 14, color: "#444", fontWeight: "500" },
-  subLabel: { fontSize: 13, color: "#555", fontWeight: "500" },
-
-  rowBetween: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 6,
-  },
-  dayButton: {
-    backgroundColor: "#f5f5f5",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginRight: 6,
-  },
-  dayButtonActive: { backgroundColor: "#f8a831" },
-  dayText: { fontSize: 13, color: "#333" },
-  dayTextActive: { color: "#fff" },
-
-  timeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  timeBox: { flex: 0.48 },
-  timeInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 8,
-    marginTop: 4,
-    backgroundColor: "#fff",
   },
-  secondaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+  avatar: { width: 80, height: 80, borderRadius: 40, marginRight: 15 },
+  infoContainer: { flex: 1 },
+  name: { fontSize: 18, fontWeight: "600", color: "#333" },
+  detail: { fontSize: 13, color: "#666", marginTop: 3 },
+  input: {
+    borderBottomWidth: 1,
+    borderColor: "#ccc",
+    marginVertical: 6,
+    paddingVertical: 4,
+    fontSize: 14,
+    color: "#333",
+  },
+  saveBtn: {
     backgroundColor: "#f8a831",
     paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    borderRadius: 8,
+    alignItems: "center",
     marginTop: 8,
-    alignSelf: "flex-start",
   },
-  secondaryText: {
-    color: "#fff",
-    fontWeight: "600",
-    marginLeft: 6,
+  saveText: { color: "#fff", fontWeight: "600" },
+  section: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
+    elevation: 2,
+    borderColor: "#ffe38f",
+    borderWidth: 1,
   },
-  supportItem: {
+  sectionTitle: { fontSize: 15, fontWeight: "600", color: "#333" },
+  sectionDesc: { fontSize: 13, color: "#777", marginTop: 4 },
+  rowBetween: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 5,
+    justifyContent: "space-between",
   },
-  supportText: { marginLeft: 8, color: "#333", fontSize: 14 },
-  feedbackInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#fff",
-    marginTop: 6,
-    height: 80,
-    textAlignVertical: "top",
-  },
-  submitBtn: {
-    backgroundColor: "#f8a831",
-    marginTop: 10,
-    paddingVertical: 10,
-    borderRadius: 8,
+  settingBtn: {
+    flexDirection: "row",
     alignItems: "center",
+    marginTop: 10,
   },
-  submitText: { color: "#fff", fontWeight: "700" },
+  settingText: { fontSize: 14, color: "#555", marginLeft: 8 },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f44336",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  logoutText: { color: "#fff", fontWeight: "600", marginLeft: 6 },
   bottomBar: {
     position: "absolute",
     bottom: 0,
