@@ -64,14 +64,21 @@ export default function Dashboard() {
           <Text>Delivered</Text>
         </View>
 
-        <View style={styles.row}>
-          <TouchableOpacity onPress={()=>router.push("/agent/update-status")}>
-            <Text style={styles.secondaryText}>Update Status</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryOutline}>
-            <Text style={styles.secondaryOutlineText}>Send Live Location</Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.row}>
+    <TouchableOpacity
+      style={styles.secondaryBtn}
+      onPress={() => router.push("/agent/update-status")}
+    >
+      <Text style={styles.secondaryText}>Update Status</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity
+      style={styles.secondaryOutline}
+      onPress={() => router.push("/agent/live-location")}
+    >
+      <Text style={styles.secondaryOutlineText}>Send Live Location</Text>
+    </TouchableOpacity>
+  </View>
 
         {/* Earnings */}
         <Text style={styles.sectionTitle}>Earnings</Text>
