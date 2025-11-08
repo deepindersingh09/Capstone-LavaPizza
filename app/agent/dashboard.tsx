@@ -48,7 +48,7 @@ export default function Dashboard() {
           <Text style={styles.subText}>Restaurant: Pizza Point</Text>
           <Text style={styles.subText}>Customer: Alex Johnson</Text>
           <Text style={styles.subText}>ETA: 15 mins</Text>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity onPress={()=>router.push("/agent/activeDeliveries")}>
             <Text style={styles.actionText}>Accept / Reject</Text>
           </TouchableOpacity>
         </View>
