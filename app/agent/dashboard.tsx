@@ -65,7 +65,7 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.row}>
-          <TouchableOpacity style={styles.secondaryBtn}>
+          <TouchableOpacity onPress={()=>router.push("/agent/update-status")}>
             <Text style={styles.secondaryText}>Update Status</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryOutline}>
