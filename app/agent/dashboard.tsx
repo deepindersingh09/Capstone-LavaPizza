@@ -38,8 +38,11 @@ export default function Dashboard() {
           </Text>
         </View>
 
-        {/* Active Deliveries */}
-        <Text style={styles.sectionTitle}>Active Deliveries</Text>
+        {/* Active Deliveries with Routing */}
+        <TouchableOpacity onPress={() => router.push("/agent/activeDeliveries")}>
+          <Text style={styles.sectionTitle}>Active Deliveries</Text>
+        </TouchableOpacity>
+
         <View style={styles.card}>
           <Text style={styles.cardText}>Order #12345</Text>
           <Text style={styles.subText}>Restaurant: Pizza Point</Text>
@@ -96,7 +99,7 @@ export default function Dashboard() {
           <Ionicons name="bicycle" size={26} color="#999" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={()=>router.push("/agent/earnings")}>
+        <TouchableOpacity onPress={() => router.push("/agent/earnings")}>
           <Ionicons name="wallet" size={26} color="#999" />
         </TouchableOpacity>
 
