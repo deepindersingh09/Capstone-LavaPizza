@@ -26,9 +26,10 @@ export default function LavaChatScreen() {
       id: 'intro-1',
       role: 'assistant',
       content:
-        "Hey! I’m Lava, your pizza assistant 🔥🍕 Ask me about the menu, deals, or help building your perfect pizza.",
+        "Hey! I’m Lava, your pizza assistant 🔥🍕 How can I help you today?",
     },
   ]);
+
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
 
@@ -47,8 +48,7 @@ export default function LavaChatScreen() {
     setIsSending(true);
 
     try {
-      // 🔥 Replace with your actual backend URL
-      const res = await fetch('https://YOUR_BACKEND_URL/api/chat', {
+      const res = await fetch('http://10.0.2.2:3000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,9 +61,7 @@ export default function LavaChatScreen() {
         }),
       });
 
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data = await res.json();
 
@@ -72,17 +70,17 @@ export default function LavaChatScreen() {
         role: 'assistant',
         content:
           data.reply ||
-          "Sorry, I couldn’t understand that. Can you try asking in a different way?",
+          "Hmm… I couldn't understand that. Try asking in another way!",
       };
 
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error("Chat error:", error);
       const errorMsg: Message = {
         id: `assistant-error-${Date.now()}`,
-        role: 'assistant',
+        role: "assistant",
         content:
-          'Oops, something went wrong talking to the server. Please try again in a moment.',
+          "Oops! Something went wrong talking to the server. Please try again.",
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -92,6 +90,7 @@ export default function LavaChatScreen() {
 
   const renderItem = ({ item }: { item: Message }) => {
     const isUser = item.role === 'user';
+
     return (
       <View
         style={[
@@ -121,13 +120,13 @@ export default function LavaChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={80}
     >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>{'<'} Back</Text>
+          <Text style={styles.backText}>{"<"} Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Lava Assistant</Text>
         <View style={{ width: 40 }} />
@@ -141,14 +140,14 @@ export default function LavaChatScreen() {
         contentContainerStyle={styles.listContent}
       />
 
-      {/* Input */}
+      {/* Input Row */}
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
           value={input}
           onChangeText={setInput}
-          placeholder="Ask about menu, deals, hours..."
-          placeholderTextColor="#888"
+          placeholder="Ask something..."
+          placeholderTextColor="#BBB"
           multiline
         />
         <TouchableOpacity
@@ -157,7 +156,7 @@ export default function LavaChatScreen() {
           disabled={isSending}
         >
           {isSending ? (
-            <ActivityIndicator size="small" />
+            <ActivityIndicator color="#FFF" size="small" />
           ) : (
             <Text style={styles.sendText}>Send</Text>
           )}
@@ -167,98 +166,124 @@ export default function LavaChatScreen() {
   );
 }
 
+/* ---------------------------------------------
+      LAVA PIZZA COLOR SYSTEM & STYLES
+--------------------------------------------- */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B1020', // you can swap to your Lava background
+    backgroundColor: "#0B1020", // Deep dark background
   },
+
+  /* Header */
   header: {
     height: 60,
     paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1A3164', // Lava navy
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#1A3164", // Lava Navy
+    borderBottomWidth: 1,
+    borderBottomColor: "#FFC800",
   },
   backText: {
-    color: '#FFF2B8',
+    color: "#FFF2B8", // cream
     fontSize: 16,
   },
   headerTitle: {
-    color: '#FFC800',
-    fontSize: 18,
-    fontWeight: '700',
+    color: "#FFC800",
+    fontSize: 20,
+    fontWeight: "700",
   },
+
+  /* Messages List */
   listContent: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 14,
   },
+
+  /* Message Bubble Containers */
   messageContainer: {
-    marginVertical: 4,
-    flexDirection: 'row',
+    marginVertical: 6,
+    flexDirection: "row",
   },
   userMessageContainer: {
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   botMessageContainer: {
-    justifyContent: 'flex-start',
+    justifyContent: "flex-start",
   },
+
+  /* Bubbles */
   bubble: {
-    maxWidth: '80%',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    maxWidth: "80%",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 16,
   },
+
   userBubble: {
-    marginLeft: '20%',
-    backgroundColor: '#FFC800',
-    borderBottomRightRadius: 4,
+    marginLeft: "20%",
+    backgroundColor: "#FFC800", // Lava Yellow
+    borderBottomRightRadius: 6,
   },
+
   botBubble: {
-    marginRight: '20%',
-    backgroundColor: '#1F2937',
-    borderBottomLeftRadius: 4,
+    marginRight: "20%",
+    backgroundColor: "#1F2937", // Dark card grey
+    borderBottomLeftRadius: 6,
   },
+
   messageText: {
     fontSize: 14,
+    lineHeight: 20,
   },
+
   userText: {
-    color: '#1A1A1A',
+    color: "#1A1A1A", // dark black text
+    fontWeight: "600",
   },
+
   botText: {
-    color: '#F9FAFB',
+    color: "#FFF2B8", // cream
   },
+
+  /* Input Section */
   inputRow: {
-    flexDirection: 'row',
-    padding: 8,
+    flexDirection: "row",
+    padding: 10,
     borderTopWidth: 1,
-    borderTopColor: '#111827',
-    backgroundColor: '#020617',
+    borderTopColor: "#1A3164",
+    backgroundColor: "#0B1020",
   },
   input: {
     flex: 1,
     minHeight: 40,
     maxHeight: 100,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#111827',
-    color: '#F9FAFB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#111827",
+    color: "#FFF",
+    borderRadius: 16,
     fontSize: 14,
   },
+
+  /* Send Button */
   sendButton: {
     marginLeft: 8,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FF6B00', // Lava orange
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: "#FF6B00", // Lava Orange
+    justifyContent: "center",
+    alignItems: "center",
   },
   sendButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.4,
   },
   sendText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFF",
+    fontWeight: "700",
   },
 });
