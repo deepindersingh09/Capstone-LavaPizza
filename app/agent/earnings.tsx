@@ -21,6 +21,11 @@ export default function Earnings() {
     { id: "ORD-2301", date: "Nov 1, 2025", amount: "$16.00" },
   ];
 
+  // Function to navigate to Payout flow
+  const handlePayoutPress = () => {
+    router.push("/agent/payout"); 
+  };
+
   return (
     <View style={styles.mainContainer}>
       {/* Set StatusBar color to match header */}
@@ -33,9 +38,13 @@ export default function Earnings() {
             <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
+            
             <Text style={styles.topTitle}>Earnings & Payouts</Text>
-            {/* Empty View to balance the flex layout so title stays centered */}
-            <View style={{ width: 24 }} />
+            
+            {/* Wallet Icon - Navigates to Payout */}
+            <TouchableOpacity onPress={handlePayoutPress}>
+                <Ionicons name="wallet-outline" size={24} color="#333" />
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -58,8 +67,8 @@ export default function Earnings() {
           </View>
         </View>
 
-        {/* --- Payout Request Button --- */}
-        <TouchableOpacity style={styles.payoutBtn}>
+        {/* --- Payout Request Button - Navigates to Payout --- */}
+        <TouchableOpacity style={styles.payoutBtn} onPress={handlePayoutPress}>
           <Text style={styles.payoutText}>Request Payout</Text>
         </TouchableOpacity>
 
@@ -147,15 +156,15 @@ const styles = StyleSheet.create({
   // --- Summary Section ---
   summaryContainer: {
     flexDirection: "row",
-    justifyContent: "space-between", // Changed to space-between for better spacing
+    justifyContent: "space-between", 
     marginTop: 20,
-    paddingHorizontal: 20, // Align with the rest of the content
+    paddingHorizontal: 20, 
   },
   summaryCard: {
     backgroundColor: "#fff",
     paddingVertical: 15,
     borderRadius: 12,
-    width: "31%", // Slightly wider to fill gaps
+    width: "31%", 
     alignItems: "center",
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -168,7 +177,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryAmount: {
-    fontSize: 15, // Slightly smaller to fit better
+    fontSize: 15, 
     fontWeight: "800",
     color: "#222",
   },
@@ -179,7 +188,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 24,
     paddingVertical: 14,
-    borderRadius: 12, // More rounded like image
+    borderRadius: 12, 
     elevation: 3,
     shadowColor: "#f8a831",
     shadowOpacity: 0.4,
@@ -209,7 +218,7 @@ const styles = StyleSheet.create({
   historyCard: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center", // CRITICAL: Centers the price vertically with the text
+    alignItems: "center", 
     backgroundColor: "#fff",
     marginHorizontal: 20,
     marginBottom: 12,
@@ -217,7 +226,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#ffe38f",
-    // Softer shadow for card look
     shadowColor: "#ffe38f",
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
@@ -257,6 +265,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 0 : 12, // iOS handled by SafeAreaView below it
+    paddingBottom: Platform.OS === 'ios' ? 0 : 12, 
   },
 });
