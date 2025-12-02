@@ -1,57 +1,65 @@
 // ------------------------------
-// Lava Pizza Local AI Server (Ollama)
+// Lava Pizza AI Server (LOCAL OLLAMA)
 // ------------------------------
 
 const express = require('express');
 const cors = require('cors');
-const { exec } = require('child_process');
 const bodyParser = require('body-parser');
+const { Ollama } = require('ollama');   // <-- Official Ollama JS client
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Full path to ollama.exe — FIX FOR WINDOWS
-const OLLAMA_PATH = `"C:\\Users\\sdeep\\AppData\\Local\\Programs\\Ollama\\ollama.exe"`;
+// Initialize Ollama client
+const ollama = new Ollama({ host: "http://localhost:11434" });
 
-// System prompt
+// Pizza assistant prompt
 const SYSTEM_PROMPT = `
 You are Lava, the friendly pizza assistant for Lava Pizza YYC in Calgary.
-You help customers with menu questions, toppings, deals, and pizza recommendations.
-Keep answers short, friendly, fun, and helpful.
-If unsure, say you are not sure.
+Help users with pizza recommendations, toppings, deals, sizes and menu info.
+Keep responses short, friendly, and fun.
 `;
 
+// Chat endpoint
 app.post('/api/chat', async (req, res) => {
-  const userMessages = req.body.messages || [];
+  try {
+    const userMessages = req.body.messages || [];
 
-  const prompt = `
+    // Convert messages into a single conversation prompt
+    const conversation = userMessages
+      .map((m) => `${m.role}: ${m.content}`)
+      .join("\n");
+
+    const finalPrompt = `
 ${SYSTEM_PROMPT}
 
 Conversation:
-${userMessages.map(m => `${m.role}: ${m.content}`).join("\n")}
+${conversation}
 
-Assistant:
+assistant:
 `;
 
-  console.log("Sending to Ollama →", prompt);
+    console.log("⚡ Sending prompt to local model:", finalPrompt);
 
-  // 🚀 Use full path to Ollama.exe
-  const command = `${OLLAMA_PATH} run llama3.2 "${prompt}"`;
+    // Ask Ollama
+    const response = await ollama.generate({
+      model: "llama3.2",      // 👈 MUST match downloaded model
+      prompt: finalPrompt,
+    });
 
-  exec(command, (err, stdout, stderr) => {
-    if (err) {
-      console.error("Ollama exec error:", err);
-      return res.status(500).json({ error: "Local AI failed to respond" });
-    }
+    console.log("🔥 Ollama Response:", response.response);
 
-    console.log("Ollama Output →", stdout);
-    res.json({ reply: stdout.trim() });
-  });
+    return res.json({ reply: response.response.trim() });
+
+  } catch (error) {
+    console.error("❌ OLLAMA SERVER ERROR:", error);
+    return res.status(500).json({ error: "Local AI failed" });
+  }
 });
 
 // Start server
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`🔥 Lava Pizza AI (local) running on http://localhost:${PORT}`);
+  console.log(`🔥 Lava Pizza AI LOCAL running on http://localhost:${PORT}`);
 });

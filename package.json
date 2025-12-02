@@ -36,6 +36,7 @@
     "expo-web-browser": "~15.0.8",
     "express": "^5.2.1",
     "firebase": "^12.4.0",
+    "ollama": "^0.6.3",
     "openai": "^6.9.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
