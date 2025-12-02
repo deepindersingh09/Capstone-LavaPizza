@@ -1,60 +1,57 @@
-// server.js (root of Capstone-LavaPizza)
+// ------------------------------
+// Lava Pizza Local AI Server (Ollama)
+// ------------------------------
 
-// ---- Imports ----
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
-const OpenAI = require('openai');
+const { exec } = require('child_process');
+const bodyParser = require('body-parser');
 
-// ---- App Setup ----
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// ---- OpenAI Client ----
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Full path to ollama.exe — FIX FOR WINDOWS
+const OLLAMA_PATH = `"C:\\Users\\sdeep\\AppData\\Local\\Programs\\Ollama\\ollama.exe"`;
 
-// ---- Lava Pizza System Prompt ----
+// System prompt
 const SYSTEM_PROMPT = `
-You are Lava, the friendly AI assistant for Lava Pizza YYC in Calgary.
-- Answer questions about menu items, toppings, sizes, and deals.
-- Help customers build pizzas within their budget.
-- If you don't know something (like exact real-time prices or hours), say you're not sure and suggest checking the app's official sections.
-- Keep responses short, friendly, and casual, like a chill friend helping them order pizza.
+You are Lava, the friendly pizza assistant for Lava Pizza YYC in Calgary.
+You help customers with menu questions, toppings, deals, and pizza recommendations.
+Keep answers short, friendly, fun, and helpful.
+If unsure, say you are not sure.
 `;
 
-// ---- Chat Endpoint ----
 app.post('/api/chat', async (req, res) => {
-  try {
-    const bodyMessages = req.body.messages || [];
+  const userMessages = req.body.messages || [];
 
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...bodyMessages,
-    ];
+  const prompt = `
+${SYSTEM_PROMPT}
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
-      messages,
-      max_tokens: 250,
-      temperature: 0.7,
-    });
+Conversation:
+${userMessages.map(m => `${m.role}: ${m.content}`).join("\n")}
 
-    const reply =
-      completion.choices?.[0]?.message?.content ||
-      "Sorry, I couldn't come up with a response.";
+Assistant:
+`;
 
-    res.json({ reply });
-  } catch (err) {
-    console.error('Chat error on server:', err);
-    res.status(500).json({ error: 'Failed to generate response from AI' });
-  }
+  console.log("Sending to Ollama →", prompt);
+
+  // 🚀 Use full path to Ollama.exe
+  const command = `${OLLAMA_PATH} run llama3.2 "${prompt}"`;
+
+  exec(command, (err, stdout, stderr) => {
+    if (err) {
+      console.error("Ollama exec error:", err);
+      return res.status(500).json({ error: "Local AI failed to respond" });
+    }
+
+    console.log("Ollama Output →", stdout);
+    res.json({ reply: stdout.trim() });
+  });
 });
 
-// ---- Start Server ----
-const PORT = process.env.PORT || 3000;
+// Start server
+const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`Lava chat server running on port ${PORT}`);
+  console.log(`🔥 Lava Pizza AI (local) running on http://localhost:${PORT}`);
 });
