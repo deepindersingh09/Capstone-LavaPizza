@@ -23,7 +23,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '../../lib/firebase';
+import { auth } from '../../lib/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Login() {
@@ -43,12 +43,12 @@ export default function Login() {
     console.log('🔵 Login attempt started');
     console.log('Email:', email);
     console.log('Auth object:', auth ? 'Exists' : 'NULL');
-    
+
     if (!email || !password) {
       Alert.alert('Missing Info', 'Enter both email & password');
       return;
     }
-    
+
     if (!isValidEmail(email.trim())) {
       Alert.alert('Invalid Email', 'Enter a valid email');
       return;
@@ -106,7 +106,7 @@ export default function Login() {
       console.error('Full error:', JSON.stringify(e, null, 2));
 
       let msg = 'Unable to sign in. Please check console for details.';
-      
+
       if (e.code === 'auth/user-not-found') {
         msg = 'No account found with this email. Please sign up first.';
       } else if (e.code === 'auth/wrong-password') {
@@ -177,7 +177,7 @@ export default function Login() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}

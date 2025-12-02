@@ -20,7 +20,7 @@ import {
 } from 'firebase/auth';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '../../lib/firebase';
+import { auth } from '../../lib/firebaseConfig';
 import React from 'react';
 
 export default function SignupCustomer() {

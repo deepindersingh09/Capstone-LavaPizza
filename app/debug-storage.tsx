@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseConfig';
 import { useRouter } from 'expo-router';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
@@ -101,61 +101,61 @@ export default function DebugStorage() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-        padding: 20,
-        paddingTop: 50,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 20,
-    },
-    section: {
-        backgroundColor: '#f5f5f5',
-        padding: 15,
-        borderRadius: 10,
-        marginBottom: 15,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        color: '#E53935',
-    },
-    data: {
-        fontSize: 14,
-        marginBottom: 5,
-        fontFamily: 'monospace',
-    },
-    button: {
-        backgroundColor: '#FFC107',
-        padding: 15,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    buttonText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 20,
+    paddingTop: 50,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  section: {
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#E53935',
+  },
+  data: {
+    fontSize: 14,
+    marginBottom: 5,
+    fontFamily: 'monospace',
+  },
+  button: {
+    backgroundColor: '#FFC107',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
 
 async function getUserFromFirestore(uid: string) {
-    try {
-        const db = getFirestore();
-        const userRef = doc(db, 'users', uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-            return userSnap.data();
-        } else {
-            return null;
-        }
-    } catch (e) {
-        console.error('Error fetching user from Firestore:', e);
-        return null;
+  try {
+    const db = getFirestore();
+    const userRef = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      return userSnap.data();
+    } else {
+      return null;
     }
+  } catch (e) {
+    console.error('Error fetching user from Firestore:', e);
+    return null;
+  }
 }
 

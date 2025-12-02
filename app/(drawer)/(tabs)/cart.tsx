@@ -1,4 +1,5 @@
 // app/(drawer)/(tabs)/cart.tsx
+
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -13,6 +14,9 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import OrderService from '../../../services/OrderService';
+import { auth } from '../../../lib/firebaseConfig';
+
 
 interface CartItem {
   id: string;
@@ -30,6 +34,7 @@ export default function CartScreen() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   // Load cart when screen is focused
   useFocusEffect(
@@ -98,23 +103,125 @@ export default function CartScreen() {
     );
   };
 
+  const clearCart = async () => {
+    try {
+      await AsyncStorage.setItem('@cart', JSON.stringify([]));
+      setCartItems([]);
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+    }
+  };
+
   const getTotal = () => {
     return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cartItems.length === 0) {
       Alert.alert('Cart Empty', 'Add some pizzas first!');
       return;
     }
 
-    const total = subtotal + tax;
-    
+    const user = auth.currentUser;
+
+    // Check if user is logged in
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to place an order',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign In',
+            onPress: () => {
+              try {
+                router.push('/login' as any);
+              } catch (e) {
+                console.error('Navigation error:', e);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    setIsPlacingOrder(true);
+
     try {
-      router.push(`/checkout?total=${total.toFixed(2)}`);
-    } catch (e) {
-      console.error('Navigation error:', e);
-      Alert.alert('Error', 'Could not navigate to checkout');
+      const subtotal = getTotal();
+      const tax = subtotal * 0.05;
+      const total = subtotal + tax;
+
+      // Prepare order data for Firebase
+      const orderData = {
+        userId: user.uid,
+        customerName: user.displayName || user.email?.split('@')[0] || 'Customer',
+        items: cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          size: item.size,
+          crust: item.crust,
+          type: item.type,
+          toppings: item.toppings,
+          details: item.details,
+        })),
+        total: parseFloat(total.toFixed(2)),
+        phone: user.phoneNumber || '28738374874',
+        address: '35 taralea cresent', // You can add address collection here
+        paymentMethod: 'Cash', // You can add payment method selection
+        notes: 'ujhuhd',
+      };
+
+      console.log('Creating order:', orderData);
+
+      // Create order in Firebase
+      const result = await OrderService.createOrder(orderData);
+
+      if (result.success) {
+        // Clear cart
+        await clearCart();
+
+        // Show success message
+        Alert.alert(
+          'Order Placed Successfully! 🎉',
+          `Order #${result.orderId.slice(-6)} has been placed.\n\nTotal: $${total.toFixed(2)}\n\nYour order is being prepared!`,
+          [
+            {
+              text: 'View Orders',
+              onPress: () => {
+                try {
+                  // Navigate to home instead of order tracking
+                  router.push('/(drawer)/(tabs)/home' as any);
+                } catch (e) {
+                  console.error('Navigation error:', e);
+                }
+              },
+            },
+            {
+              text: 'OK',
+              onPress: () => {
+                try {
+                  router.push('/(drawer)/(tabs)/home' as any);
+                } catch (e) {
+                  console.error('Navigation error:', e);
+                }
+              },
+            },
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.error('Error placing order:', error);
+      Alert.alert(
+        'Order Failed',
+        error.message || 'Failed to place order. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -176,7 +283,7 @@ export default function CartScreen() {
           <View key={item.id} style={styles.cartItem}>
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.name}</Text>
-              
+
               {item.size && (
                 <View style={styles.sizeContainer}>
                   <Text style={styles.itemDetail}>Size: {item.size}</Text>
@@ -188,7 +295,7 @@ export default function CartScreen() {
                   {item.crust.charAt(0).toUpperCase() + item.crust.slice(1)} Crust
                 </Text>
               )}
-              
+
               <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
 
               {item.type === 'custom' && item.toppings && item.toppings.length > 0 && (
@@ -212,8 +319,8 @@ export default function CartScreen() {
 
             <View style={styles.rightSection}>
               <View style={styles.qtyContainer}>
-                <TouchableOpacity 
-                  style={styles.qtyButton} 
+                <TouchableOpacity
+                  style={styles.qtyButton}
                   onPress={() => decreaseQty(item.id)}
                   activeOpacity={0.7}
                 >
@@ -222,8 +329,8 @@ export default function CartScreen() {
 
                 <Text style={styles.qtyValue}>{item.quantity}</Text>
 
-                <TouchableOpacity 
-                  style={styles.qtyButton} 
+                <TouchableOpacity
+                  style={styles.qtyButton}
                   onPress={() => increaseQty(item.id)}
                   activeOpacity={0.7}
                 >
@@ -235,7 +342,7 @@ export default function CartScreen() {
                 ${(item.price * item.quantity).toFixed(2)}
               </Text>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => handleRemove(item.id, item.name)}
                 activeOpacity={0.7}
@@ -266,13 +373,26 @@ export default function CartScreen() {
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.checkoutButton} 
+        <TouchableOpacity
+          style={[
+            styles.checkoutButton,
+            isPlacingOrder && styles.checkoutButtonDisabled
+          ]}
           onPress={handleCheckout}
           activeOpacity={0.8}
+          disabled={isPlacingOrder}
         >
-          <Text style={styles.checkoutText}>Proceed to Checkout</Text>
-          <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
+          {isPlacingOrder ? (
+            <>
+              <ActivityIndicator color="#1A1A1A" style={{ marginRight: 8 }} />
+              <Text style={styles.checkoutText}>Placing Order...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.checkoutText}>Place Order</Text>
+              <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -492,6 +612,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  checkoutButtonDisabled: {
+    opacity: 0.7,
   },
   checkoutText: {
     fontSize: 16,

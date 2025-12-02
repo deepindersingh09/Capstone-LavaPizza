@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Slot, useRouter, usePathname, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseConfig';
 import { CartProvider } from './context/CartContext';
 
 import { ThemeProvider } from '../lib/ThemeContext';
@@ -37,13 +37,13 @@ export default function RootLayout() {
   }, []);
 
   <ThemeProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="auth/login" />
-        {/* ... other screens */}
-      </Stack>
-    </ThemeProvider>
- 
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="auth/login" />
+      {/* ... other screens */}
+    </Stack>
+  </ThemeProvider>
+
 
   // If an old anonymous session exists, sign it out
   useEffect(() => {

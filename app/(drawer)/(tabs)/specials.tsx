@@ -92,52 +92,57 @@ export default function SpecialsScreen() {
     setSelectedCrust('thin');
   };
 
-  const handleAddToCart = async () => {
-    if (!selectedPizza || !selectedSize) {
-      Alert.alert('Error', 'Please select a size before adding to cart');
-      return;
-    }
-    const totalPrice = selectedSize.price * quantity;
+const handleAddToCart = async () => {
+  if (!selectedPizza || !selectedSize) {
+    Alert.alert('Error', 'Please select a size');
+    return;
+  }
 
-    try {
-      const cartItem = {
-        id: `${selectedPizza.id}-${Date.now()}`,
-        name: selectedPizza.name,
-        price: totalPrice,
-        quantity: quantity,
-        size: selectedSize.size,
-        crust: selectedCrust,
-        type: 'special',
-      };
+  const itemPrice = selectedPizza.price + selectedSize.price;
+  const totalPrice = itemPrice * quantity;
 
-      const cartData = await AsyncStorage.getItem('@cart');
-      const cart = cartData ? JSON.parse(cartData) : [];
-      cart.push(cartItem);
-      await AsyncStorage.setItem('@cart', JSON.stringify(cart));
+  try {
+    const cartItem = {
+      id: `${selectedPizza.id}-${Date.now()}`,
+      name: selectedPizza.name,
+      price: totalPrice,
+      quantity: quantity,
+      size: selectedSize.size,
+      type: selectedPizza.id.startsWith('sp') ? 'special' : 'deal',
+      details: [selectedPizza.description],
+    };
 
-      Alert.alert(
-        'Added to Cart! 🍕',
-        `${selectedPizza.name}\n${selectedSize.size} • ${selectedCrust} crust\nQuantity: ${quantity}\nTotal: $${totalPrice.toFixed(2)}`,
-        [
-          { text: 'Continue Shopping', onPress: () => setModalVisible(false) },
-          { 
-            text: 'View Cart', 
-            onPress: () => {
-              setModalVisible(false);
-              try {
-                router.push('/(drawer)/(tabs)/cart');
-              } catch {
-                router.push('/cart');
-              }
-            }
+    const cartData = await AsyncStorage.getItem('@cart');
+    const cart = cartData ? JSON.parse(cartData) : [];
+    cart.push(cartItem);
+    
+    // ✅ SAVE AND WAIT FOR COMPLETION
+    await AsyncStorage.setItem('@cart', JSON.stringify(cart));
+    
+    // ✅ ADD SMALL DELAY TO ENSURE STORAGE IS WRITTEN
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    Alert.alert(
+      'Added to Cart! 🍕',
+      `${selectedPizza.name}\n${selectedSize.size}\nQuantity: ${quantity}\nTotal: $${totalPrice.toFixed(2)}`,
+      [
+        { text: 'Continue Shopping', onPress: () => setModalVisible(false) },
+        {
+          text: 'View Cart',
+          onPress: async () => {  // ✅ MAKE THIS ASYNC
+            setModalVisible(false);
+            // ✅ SMALL DELAY BEFORE NAVIGATION
+            await new Promise(resolve => setTimeout(resolve, 100));
+            router.push('/(drawer)/(tabs)/cart');
           },
-        ]
-      );
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      Alert.alert('Error', 'Failed to add item to cart');
-    }
-  };
+        },
+      ]
+    );
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    Alert.alert('Error', 'Failed to add item to cart');
+  }
+};
   
   const totalPrice = selectedSize ? selectedSize.price * quantity : 0;
 

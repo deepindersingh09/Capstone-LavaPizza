@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseConfig';
 import { signOut } from 'firebase/auth';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -24,11 +24,11 @@ export default function Profile() {
   const loadUserData = async () => {
     try {
       console.log('👤 Account Page: Loading user data...');
-      
+
       // Check if user is in guest mode FIRST
       const guestMode = await AsyncStorage.getItem('@guest_mode');
       console.log('👤 Guest mode value:', guestMode);
-      
+
       if (guestMode === '1') {
         console.log('👤 User is in GUEST mode');
         setUserName('Guest');
@@ -41,10 +41,10 @@ export default function Profile() {
       // Not guest mode, load actual user data
       const firstName = await AsyncStorage.getItem('@user_first_name');
       const lastName = await AsyncStorage.getItem('@user_last_name');
-      
+
       // Get email and other info from Firebase auth
       const currentUser = auth.currentUser;
-      
+
       if (firstName) {
         const fullName = lastName ? `${firstName} ${lastName}` : firstName;
         setUserName(fullName);
@@ -73,13 +73,13 @@ export default function Profile() {
       if (auth.currentUser) {
         await signOut(auth);
       }
-      
+
       // Clear local storage
       await AsyncStorage.removeItem('@guest_mode');
       await AsyncStorage.removeItem('@user_first_name');
       await AsyncStorage.removeItem('@user_last_name');
       await AsyncStorage.removeItem('@order_mode');
-      
+
       // Navigate to login
       router.replace('/auth/login');
     } catch (e) {
@@ -92,13 +92,13 @@ export default function Profile() {
     "General",
     "Payment",
     "Order History",
-    "Track Order", 
+    "Track Order",
     "Update Delivery Info",
   ];
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      
+
       {/* Profile Section */}
       <View style={styles.profileSection}>
         <View style={styles.profileCard}>
@@ -125,7 +125,7 @@ export default function Profile() {
 
         {/* Guest Mode Login Prompt Banner */}
         {isGuest && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.loginPromptBanner}
             onPress={() => router.push('/auth/login')}
           >
@@ -167,8 +167,8 @@ export default function Profile() {
       </View>
 
       {/* Logout Button */}
-      <TouchableOpacity 
-        style={styles.logoutButton} 
+      <TouchableOpacity
+        style={styles.logoutButton}
         onPress={handleLogout}
       >
         <Ionicons name="log-out-outline" size={20} color="#333" style={styles.logoutIcon} />
@@ -205,11 +205,11 @@ const styles = StyleSheet.create({
     marginRight: 15,
     marginLeft: 10,
   },
-  profileText: { 
-    flex: 1, 
-    marginLeft: 10 
+  profileText: {
+    flex: 1,
+    marginLeft: 10
   },
-  
+
   // Guest Mode Styles
   guestInfo: {
     flexDirection: 'column',
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     color: '#E53935',
     marginTop: 2,
   },
-  
+
   // Login Prompt Banner
   loginPromptBanner: {
     backgroundColor: '#FFF8E1',
@@ -259,34 +259,34 @@ const styles = StyleSheet.create({
   },
 
   // User Info Styles
-  nameRow: { 
-    flexDirection: "row", 
-    alignItems: "center" 
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center"
   },
-  name: { 
-    fontSize: 20, 
-    fontWeight: "bold", 
-    marginRight: 8, 
-    marginLeft: 2 
+  name: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginRight: 8,
+    marginLeft: 2
   },
-  email: { 
-    fontSize: 16, 
-    fontWeight: "600", 
+  email: {
+    fontSize: 16,
+    fontWeight: "600",
     marginLeft: 2,
     marginTop: 4,
   },
-  phone: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    color: "gray", 
+  phone: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "gray",
     marginLeft: 2,
     marginTop: 2,
   },
 
   // Options Menu
-  options: { 
-    borderTopWidth: 1, 
-    borderColor: "#ddd", 
+  options: {
+    borderTopWidth: 1,
+    borderColor: "#ddd",
     marginBottom: 20,
     marginTop: 10,
   },
@@ -298,8 +298,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#ddd",
   },
-  optionText: { 
-    fontSize: 16 
+  optionText: {
+    fontSize: 16
   },
 
   // Logout Button
@@ -318,8 +318,8 @@ const styles = StyleSheet.create({
   logoutIcon: {
     marginRight: 8,
   },
-  logoutText: { 
-    fontSize: 16, 
-    fontWeight: "bold" 
+  logoutText: {
+    fontSize: 16,
+    fontWeight: "bold"
   },
 });
