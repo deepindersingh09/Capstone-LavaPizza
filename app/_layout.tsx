@@ -1,11 +1,11 @@
-// app/_layout.tsx - WITH GUEST MODE SUPPORT
+// app/_layout.tsx - WITH LONGER SPLASH & FULL SCREEN
 import React, { useEffect, useState } from 'react';
 import { Slot, useRouter, usePathname, Stack } from 'expo-router';
+import { View, Image, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebaseConfig';
 import { CartProvider } from './context/CartContext';
-
 import { ThemeProvider } from '../lib/ThemeContext';
 
 export default function RootLayout() {
@@ -13,8 +13,18 @@ export default function RootLayout() {
   const pathname = usePathname();
   const [authReady, setAuthReady] = useState(false);
   const [guestReady, setGuestReady] = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [guest, setGuest] = useState(false);
+
+  // Minimum splash screen display time (2 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinTimeElapsed(true);
+    }, 2000); // 👈 Adjust this (in milliseconds)
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Firebase session
   useEffect(() => {
@@ -53,8 +63,9 @@ export default function RootLayout() {
     }
   }, [authReady, user]);
 
+  // Navigation logic
   useEffect(() => {
-    if (!authReady || !guestReady) return;
+    if (!authReady || !guestReady || !minTimeElapsed) return;
 
     const inAuth = pathname.startsWith('/auth');
     const isAuthed = (!!user && !user.isAnonymous) || guest;
@@ -67,20 +78,45 @@ export default function RootLayout() {
       isGuest: guest
     });
 
-    // Only redirect unauthenticated users trying to access the app
     if (!isAuthed && !inAuth) {
       console.log('❌ Not authenticated, redirecting to login');
       router.replace('/auth/login');
     }
-  }, [authReady, guestReady, user, guest, pathname, router]);
+  }, [authReady, guestReady, minTimeElapsed, user, guest, pathname, router]);
 
-  if (!authReady || !guestReady) {
-    return null; // Show nothing while loading
+  // Show splash screen while loading OR minimum time hasn't elapsed
+  if (!authReady || !guestReady || !minTimeElapsed) {
+    return (
+      <View style={styles.splashContainer}>
+        <Image 
+          source={require('../assets/images/splash.png')} // 👈 Update this path
+          style={styles.splashImage}
+          resizeMode="cover" // 👈 'cover' fills screen, 'contain' fits within
+        />
+      </View>
+    );
   }
 
   return (
-    <CartProvider>
-      <Slot />
-    </CartProvider>
+    <ThemeProvider>
+      <CartProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="auth/login" />
+          {/* ... other screens */}
+        </Stack>
+      </CartProvider>
+    </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  splashContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff', // 👈 Match your brand color
+  },
+  splashImage: {
+    width: '100%',
+    height: '100%',
+  },
+});

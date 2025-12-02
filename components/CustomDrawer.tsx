@@ -80,6 +80,13 @@ export default function CustomDrawer(props: any) {
       label: 'Support',
       route: '/support',
     },
+    {
+  icon: 'chatbubbles-outline',
+  label: 'Lava Assistant',
+  route: '/chat',
+  iconSet: 'Ionicons' as const
+},
+
   ];
 
   return (

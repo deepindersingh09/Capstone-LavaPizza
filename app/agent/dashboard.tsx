@@ -8,44 +8,61 @@ import {
   SafeAreaView,
   StatusBar,
 } from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 export default function Dashboard() {
+  const userName = "John Doe"; // dynamically replace this later with logged-in user's name
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      {/* Header */}
+
+      {/* Header with Menu and Notifications */}
       <View style={styles.header}>
-        <Ionicons name="menu" size={24} color="#000" />
+        <TouchableOpacity onPress={() => router.push("/agent/menu")}>
+          <Ionicons name="menu" size={24} color="#000" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Delivery Dashboard</Text>
-        <Ionicons name="notifications-outline" size={22} color="#000" />
+        <TouchableOpacity onPress={() => router.push("/agent/notifications")}>
+          <View style={styles.notificationContainer}>
+            <Ionicons name="notifications-outline" size={22} color="#000" />
+            {/* Optional: Add notification badge */}
+            <View style={styles.notificationBadge}>
+              <Text style={styles.badgeText}>3</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
       </View>
 
+      {/* Scrollable Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContainer}
       >
-        {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View>
-            <Text style={styles.profileName}>John Doe</Text>
-            <Text style={styles.profileText}>+1 234 567 890</Text>
-            <Text style={styles.profileText}>Vehicle: PB10-AB-2345</Text>
-          </View>
-          <TouchableOpacity style={styles.editBtn}>
-            <MaterialIcons name="edit" size={18} color="#fff" />
-          </TouchableOpacity>
+        {/* Welcome Message */}
+        <View style={styles.welcomeContainer}>
+          <Text style={styles.welcomeText}>Welcome, {userName} 👋</Text>
+          <Text style={styles.subWelcome}>
+            Ready for your next delivery today?
+          </Text>
         </View>
 
-        {/* Active Deliveries */}
-        <Text style={styles.sectionTitle}>Active Deliveries</Text>
+        {/* Active Deliveries with Routing */}
+        <TouchableOpacity onPress={() => router.push("/agent/activeDeliveries")}>
+          <Text style={styles.sectionTitle}>Active Deliveries</Text>
+        </TouchableOpacity>
+
         <View style={styles.card}>
           <Text style={styles.cardText}>Order #12345</Text>
           <Text style={styles.subText}>Restaurant: Pizza Point</Text>
           <Text style={styles.subText}>Customer: Alex Johnson</Text>
           <Text style={styles.subText}>ETA: 15 mins</Text>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Text style={styles.actionText}>Accept / Reject</Text>
+          <TouchableOpacity 
+            style={styles.actionBtn}
+            onPress={() => router.push("/agent/activeDeliveries")}
+          >
+            <Text style={styles.actionText}>View Details</Text>
           </TouchableOpacity>
         </View>
 
@@ -55,16 +72,23 @@ export default function Dashboard() {
           <View style={styles.progressBar}></View>
         </View>
         <View style={styles.progressLabels}>
-          <Text>Accepted</Text>
-          <Text>On Way</Text>
-          <Text>Delivered</Text>
+          <Text style={styles.progressLabel}>Accepted</Text>
+          <Text style={styles.progressLabel}>On Way</Text>
+          <Text style={styles.progressLabel}>Delivered</Text>
         </View>
 
         <View style={styles.row}>
-          <TouchableOpacity style={styles.secondaryBtn}>
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            onPress={() => router.push("/agent/update-status")}
+          >
             <Text style={styles.secondaryText}>Update Status</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryOutline}>
+
+          <TouchableOpacity
+            style={styles.secondaryOutline}
+            onPress={() => router.push("/agent/live-location")}
+          >
             <Text style={styles.secondaryOutlineText}>Send Live Location</Text>
           </TouchableOpacity>
         </View>
@@ -75,22 +99,36 @@ export default function Dashboard() {
           <Text style={styles.subText}>Today's Earnings: $58.00</Text>
           <Text style={styles.subText}>Weekly Earnings: $340.00</Text>
           <View style={styles.rowBetween}>
-            <TouchableOpacity style={styles.actionBtnSmall}>
+            <TouchableOpacity 
+              style={styles.actionBtnSmall}
+              onPress={() => router.push("/agent/earnings")}
+            >
               <Text style={styles.actionText}>Payout Request</Text>
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/agent/earnings")}>
               <Text style={styles.linkText}>View Full History</Text>
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation Placeholder */}
+      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Ionicons name="home" size={24} color="#f8a831" />
-        <Ionicons name="bicycle" size={24} color="#999" />
-        <Ionicons name="wallet" size={24} color="#999" />
-        <Ionicons name="person" size={24} color="#999" />
+        <TouchableOpacity onPress={() => router.push("/agent/dashboard")}>
+          <Ionicons name="home" size={26} color="#f8a831" />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/agent/activeDeliveries")}>
+          <Ionicons name="bicycle" size={26} color="#999" />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/agent/earnings")}>
+          <Ionicons name="wallet" size={26} color="#999" />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/agent/profile")}>
+          <Ionicons name="person" size={26} color="#999" />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -116,41 +154,46 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#000",
   },
+  notificationContainer: {
+    position: "relative",
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    backgroundColor: "#e53935",
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+  },
   scrollContainer: {
     padding: 16,
-    paddingBottom: 90,
+    paddingBottom: 100,
   },
-  profileCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  welcomeContainer: {
     marginBottom: 20,
   },
-  profileName: {
+  welcomeText: {
+    fontSize: 20,
     fontWeight: "700",
-    fontSize: 16,
+    color: "#222",
   },
-  profileText: {
-    color: "#555",
-    fontSize: 13,
-  },
-  editBtn: {
-    backgroundColor: "#f8a831",
-    padding: 8,
-    borderRadius: 8,
+  subWelcome: {
+    fontSize: 14,
+    color: "#777",
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 8,
-    marginTop: 4,
     color: "#333",
   },
   card: {
@@ -159,6 +202,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
     elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
   },
   cardText: {
     fontWeight: "600",
@@ -205,6 +252,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
+  progressLabel: {
+    fontSize: 12,
+    color: "#666",
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -248,9 +299,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     backgroundColor: "#fff",
     borderTopWidth: 0.5,
     borderColor: "#ddd",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
 });
