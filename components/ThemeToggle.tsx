@@ -1,37 +1,32 @@
 import React from 'react';
 import { Switch, View, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons'; 
-import { useTheme } from '@/lib/ThemeContext'; 
+import { Feather } from '@expo/vector-icons';
+import { useTheme } from '@/contexts/ThemeContext'; 
 
 export function ThemeToggle() {
-    const { theme, isDark, setThemeMode } = useTheme();
+    const { theme, isDark, toggleTheme } = useTheme();
 
-    const handleToggle = () => {
-        const newMode = isDark ? 'light' : 'dark';
-        setThemeMode(newMode); 
-    };
-    
-    const isChecked = isDark; 
-    const accentColor = '#FF4500'; // Fiery orange accent for the Lava theme
+    const isChecked = isDark;
+    const accentColor = theme.primary; // Use theme primary color
 
     return (
         <View style={styles.toggleContainer}>
-            <Feather 
-                name="sun" 
-                size={22} 
-                color={isChecked ? theme.textSecondary : accentColor} 
+            <Feather
+                name="sun"
+                size={22}
+                color={isChecked ? theme.textSecondary : accentColor}
             />
             <Switch
-                trackColor={{ false: theme.textSecondary, true: accentColor }}
-                thumbColor={theme.cardBackground} 
-                onValueChange={handleToggle}
+                trackColor={{ false: theme.borderDark, true: accentColor }}
+                thumbColor={theme.surface}
+                onValueChange={toggleTheme}
                 value={isChecked}
                 style={styles.switch}
             />
-            <Feather 
-                name="moon" 
-                size={22} 
-                color={isChecked ? accentColor : theme.textSecondary} 
+            <Feather
+                name="moon"
+                size={22}
+                color={isChecked ? accentColor : theme.textSecondary}
             />
         </View>
     );
