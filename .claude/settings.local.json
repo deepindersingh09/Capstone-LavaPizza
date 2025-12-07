@@ -11,7 +11,8 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nchore: configure ESLint, Prettier, and git hooks\n\n- Added ESLint with TypeScript support and Expo config\n- Configured Prettier with project code style standards  \n- Set up Husky pre-commit hooks with lint-staged\n- Added npm scripts for linting, formatting, and validation\n- Pre-commit hook will auto-fix and format staged files\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git commit:*)",
       "Bash(npx eslint --version)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(npx expo start:*)"
     ],
     "deny": [],
     "ask": []
