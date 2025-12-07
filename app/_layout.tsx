@@ -7,6 +7,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { CartProvider } from './context/CartContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -90,13 +91,15 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <CartProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="auth/login" />
-          {/* ... other screens */}
-        </Stack>
-      </CartProvider>
+      <AuthProvider>
+        <CartProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="auth/login" />
+            {/* ... other screens */}
+          </Stack>
+        </CartProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
