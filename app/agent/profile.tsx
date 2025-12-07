@@ -10,17 +10,23 @@ import {
   Switch,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Profile() {
+  const { theme, spacing, borderRadius, fontSize, elevation, isDark, toggleTheme } = useTheme();
+  const { user } = useAuth();
+
   const [isEditing, setIsEditing] = useState(false);
   const [isAvailable, setIsAvailable] = useState(true);
   const [profile, setProfile] = useState({
-    name: "Rohit Kumar",
-    email: "rohit.agent@example.com",
-    phone: "+91 9876543210",
-    location: "Ludhiana, Punjab",
+    name: user?.name || "Delivery Agent",
+    email: user?.email || "agent@example.com",
+    phone: user?.phone || "+1 234-567-8900",
+    location: "Calgary, AB",
   });
 
   const handleEditToggle = () => setIsEditing(!isEditing);
@@ -42,22 +48,39 @@ export default function Profile() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={["top"]}>
       {/* --- Header --- */}
-      <View style={styles.topBar}>
-        <Text style={styles.topTitle}>My Profile</Text>
+      <View style={[styles.topBar, { backgroundColor: theme.primary, ...elevation.md }]}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={theme.textInverse} />
+        </TouchableOpacity>
+        <Text style={[styles.topTitle, { color: theme.textInverse, fontSize: fontSize.lg }]}>
+          My Profile
+        </Text>
         <TouchableOpacity onPress={handleEditToggle}>
           <Ionicons
             name={isEditing ? "close-outline" : "create-outline"}
             size={24}
-            color="#333"
+            color={theme.textInverse}
           />
         </TouchableOpacity>
       </View>
 
       {/* --- Profile Info --- */}
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.profileCard}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}>
+        <View
+          style={[
+            styles.profileCard,
+            {
+              backgroundColor: theme.surface,
+              padding: spacing.lg,
+              marginBottom: spacing.md,
+              borderRadius: borderRadius.lg,
+              borderColor: theme.border,
+              ...elevation.sm,
+            },
+          ]}
+        >
           <Image
             source={{
               uri: "https://cdn-icons-png.flaticon.com/512/219/219983.png",
@@ -68,52 +91,162 @@ export default function Profile() {
             {isEditing ? (
               <>
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      fontSize: fontSize.md,
+                    },
+                  ]}
                   value={profile.name}
                   onChangeText={(t) => setProfile({ ...profile, name: t })}
+                  placeholderTextColor={theme.textTertiary}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      fontSize: fontSize.md,
+                    },
+                  ]}
                   value={profile.email}
                   onChangeText={(t) => setProfile({ ...profile, email: t })}
+                  placeholderTextColor={theme.textTertiary}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      fontSize: fontSize.md,
+                    },
+                  ]}
                   value={profile.phone}
                   onChangeText={(t) => setProfile({ ...profile, phone: t })}
+                  placeholderTextColor={theme.textTertiary}
                 />
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      fontSize: fontSize.md,
+                    },
+                  ]}
                   value={profile.location}
                   onChangeText={(t) => setProfile({ ...profile, location: t })}
+                  placeholderTextColor={theme.textTertiary}
                 />
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile}>
-                  <Text style={styles.saveText}>Save Profile</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.saveBtn,
+                    {
+                      backgroundColor: theme.primary,
+                      padding: spacing.sm,
+                      borderRadius: borderRadius.md,
+                    },
+                  ]}
+                  onPress={handleSaveProfile}
+                >
+                  <Text
+                    style={[styles.saveText, { color: theme.textInverse, fontSize: fontSize.md }]}
+                  >
+                    Save Profile
+                  </Text>
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <Text style={styles.name}>{profile.name}</Text>
-                <Text style={styles.detail}>{profile.email}</Text>
-                <Text style={styles.detail}>{profile.phone}</Text>
-                <Text style={styles.detail}>{profile.location}</Text>
+                <Text style={[styles.name, { color: theme.text, fontSize: fontSize.lg }]}>
+                  {profile.name}
+                </Text>
+                <Text
+                  style={[styles.detail, { color: theme.textSecondary, fontSize: fontSize.sm }]}
+                >
+                  {profile.email}
+                </Text>
+                <Text
+                  style={[styles.detail, { color: theme.textSecondary, fontSize: fontSize.sm }]}
+                >
+                  {profile.phone}
+                </Text>
+                <Text
+                  style={[styles.detail, { color: theme.textSecondary, fontSize: fontSize.sm }]}
+                >
+                  {profile.location}
+                </Text>
               </>
             )}
           </View>
         </View>
 
-        {/* --- Availability --- */}
-        <View style={styles.section}>
+        {/* --- Dark Mode --- */}
+        <View
+          style={[
+            styles.section,
+            {
+              backgroundColor: theme.surface,
+              padding: spacing.lg,
+              marginBottom: spacing.md,
+              borderRadius: borderRadius.lg,
+              borderColor: theme.border,
+              ...elevation.sm,
+            },
+          ]}
+        >
           <View style={styles.rowBetween}>
-            <Text style={styles.sectionTitle}>Availability</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              <Ionicons name={isDark ? "moon" : "sunny"} size={22} color={theme.primary} />
+              <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize.md }]}>
+                Dark Mode
+              </Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: "#ccc", true: theme.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+          <Text style={[styles.sectionDesc, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+            {isDark ? "Dark theme is enabled" : "Light theme is enabled"}
+          </Text>
+        </View>
+
+        {/* --- Availability --- */}
+        <View
+          style={[
+            styles.section,
+            {
+              backgroundColor: theme.surface,
+              padding: spacing.lg,
+              marginBottom: spacing.md,
+              borderRadius: borderRadius.lg,
+              borderColor: theme.border,
+              ...elevation.sm,
+            },
+          ]}
+        >
+          <View style={styles.rowBetween}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              <Ionicons name="bicycle" size={22} color={theme.primary} />
+              <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize.md }]}>
+                Availability
+              </Text>
+            </View>
             <Switch
               value={isAvailable}
               onValueChange={setIsAvailable}
-              trackColor={{ false: "#ccc", true: "#f8a831" }}
-              thumbColor={isAvailable ? "#fff" : "#f4f3f4"}
+              trackColor={{ false: "#ccc", true: theme.primary }}
+              thumbColor="#fff"
             />
           </View>
-          <Text style={styles.sectionDesc}>
+          <Text style={[styles.sectionDesc, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
             {isAvailable
               ? "You are currently available for delivery orders."
               : "You are currently offline."}
@@ -121,110 +254,156 @@ export default function Profile() {
         </View>
 
         {/* --- Notification Settings --- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notification Settings</Text>
-          <Text style={styles.sectionDesc}>
+        <View
+          style={[
+            styles.section,
+            {
+              backgroundColor: theme.surface,
+              padding: spacing.lg,
+              marginBottom: spacing.md,
+              borderRadius: borderRadius.lg,
+              borderColor: theme.border,
+              ...elevation.sm,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize.md }]}>
+            Notification Settings
+          </Text>
+          <Text
+            style={[
+              styles.sectionDesc,
+              { color: theme.textSecondary, fontSize: fontSize.sm, marginTop: spacing.xs },
+            ]}
+          >
             Manage alerts and reminders for orders and updates.
           </Text>
-          <TouchableOpacity style={styles.settingBtn}>
-            <Ionicons name="notifications-outline" size={22} color="#f8a831" />
-            <Text style={styles.settingText}>Customize Notifications</Text>
+          <TouchableOpacity style={[styles.settingBtn, { marginTop: spacing.sm }]}>
+            <Ionicons name="notifications-outline" size={22} color={theme.primary} />
+            <Text style={[styles.settingText, { color: theme.text, fontSize: fontSize.sm }]}>
+              Customize Notifications
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* --- Help & Support --- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support & Help Center</Text>
-          <TouchableOpacity style={styles.settingBtn}>
-            <Ionicons name="chatbubbles-outline" size={22} color="#f8a831" />
-            <Text style={styles.settingText}>Live Chat Support</Text>
+        <View
+          style={[
+            styles.section,
+            {
+              backgroundColor: theme.surface,
+              padding: spacing.lg,
+              marginBottom: spacing.md,
+              borderRadius: borderRadius.lg,
+              borderColor: theme.border,
+              ...elevation.sm,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize.md }]}>
+            Support & Help Center
+          </Text>
+          <TouchableOpacity style={[styles.settingBtn, { marginTop: spacing.sm }]}>
+            <Ionicons name="chatbubbles-outline" size={22} color={theme.primary} />
+            <Text style={[styles.settingText, { color: theme.text, fontSize: fontSize.sm }]}>
+              Live Chat Support
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingBtn}>
-            <Ionicons name="help-circle-outline" size={22} color="#f8a831" />
-            <Text style={styles.settingText}>FAQ & Tutorials</Text>
+          <TouchableOpacity style={[styles.settingBtn, { marginTop: spacing.sm }]}>
+            <Ionicons name="help-circle-outline" size={22} color={theme.primary} />
+            <Text style={[styles.settingText, { color: theme.text, fontSize: fontSize.sm }]}>
+              FAQ & Tutorials
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* --- Logout Button --- */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity
+          style={[
+            styles.logoutBtn,
+            {
+              backgroundColor: theme.danger,
+              padding: spacing.md,
+              borderRadius: borderRadius.md,
+              marginTop: spacing.sm,
+            },
+          ]}
+          onPress={handleLogout}
+        >
           <Ionicons name="log-out-outline" size={22} color="#fff" />
-          <Text style={styles.logoutText}>Logout</Text>
+          <Text style={[styles.logoutText, { color: "#fff", fontSize: fontSize.md }]}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
 
       {/* --- Bottom Nav --- */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity onPress={() => router.push("/agent/dashboard")}>
-          <Ionicons name="home-outline" size={24} color="#333" />
+      <View
+        style={[
+          styles.bottomBar,
+          { backgroundColor: theme.surface, borderTopColor: theme.border, ...elevation.lg },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/dashboard" as any)}
+        >
+          <Ionicons name="home-outline" size={24} color={theme.textSecondary} />
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
+            Home
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity>
-          <MaterialIcons name="delivery-dining" size={26} color="#333" />
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/activeDeliveries" as any)}
+        >
+          <MaterialIcons name="delivery-dining" size={26} color={theme.textSecondary} />
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
+            Deliveries
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity>
-          <Ionicons name="person" size={26} color="#f8a831" />
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="person" size={26} color={theme.primary} />
+          <Text style={[styles.navText, { color: theme.primary, fontSize: fontSize.xs }]}>
+            Profile
+          </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff9ed" },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#f0e249",
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    elevation: 5,
   },
-  topTitle: { fontSize: 18, fontWeight: "700", color: "#333" },
-  scroll: { padding: 20, paddingBottom: 100 },
+  topTitle: { fontWeight: "700", flex: 1, marginLeft: 16 },
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 3,
-    borderColor: "#ffe38f",
     borderWidth: 1,
   },
   avatar: { width: 80, height: 80, borderRadius: 40, marginRight: 15 },
   infoContainer: { flex: 1 },
-  name: { fontSize: 18, fontWeight: "600", color: "#333" },
-  detail: { fontSize: 13, color: "#666", marginTop: 3 },
+  name: { fontWeight: "600" },
+  detail: { marginTop: 3 },
   input: {
     borderBottomWidth: 1,
-    borderColor: "#ccc",
     marginVertical: 6,
     paddingVertical: 4,
-    fontSize: 14,
-    color: "#333",
   },
   saveBtn: {
-    backgroundColor: "#f8a831",
-    paddingVertical: 8,
-    borderRadius: 8,
     alignItems: "center",
     marginTop: 8,
   },
-  saveText: { color: "#fff", fontWeight: "600" },
+  saveText: { fontWeight: "600" },
   section: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
-    elevation: 2,
-    borderColor: "#ffe38f",
     borderWidth: 1,
   },
-  sectionTitle: { fontSize: 15, fontWeight: "600", color: "#333" },
-  sectionDesc: { fontSize: 13, color: "#777", marginTop: 4 },
+  sectionTitle: { fontWeight: "600" },
+  sectionDesc: { marginTop: 4 },
   rowBetween: {
     flexDirection: "row",
     alignItems: "center",
@@ -233,31 +412,30 @@ const styles = StyleSheet.create({
   settingBtn: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
   },
-  settingText: { fontSize: 14, color: "#555", marginLeft: 8 },
+  settingText: { marginLeft: 8 },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f44336",
     justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginTop: 10,
   },
-  logoutText: { color: "#fff", fontWeight: "600", marginLeft: 6 },
+  logoutText: { fontWeight: "600", marginLeft: 6 },
   bottomBar: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
     flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
     borderTopWidth: 1,
-    borderColor: "#eee",
-    elevation: 8,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+  },
+  navText: {
+    fontWeight: "600",
   },
 });
