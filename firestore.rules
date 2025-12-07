@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAgent() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/agents/$(request.auth.uid));
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    // Customers collection
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(customerId);
+    }
+
+    // Agents collection
+    match /agents/{agentId} {
+      allow read: if true; // Public read for customer tracking
+      allow write: if isOwner(agentId);
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.customerId) ||
+                       isOwner(resource.data.assignedAgentId) ||
+                       isAgent();
+    }
+
+    // Chats collection
+    match /chats/{chatId} {
+      allow read, write: if isAuthenticated();
+
+      match /messages/{messageId} {
+        allow read, create: if isAuthenticated();
+      }
+    }
+
+    // Earnings (agent only)
+    match /earnings/{earningId} {
+      allow read: if isOwner(resource.data.agentId);
+      allow create: if isAgent();
+    }
+
+    // Payout requests
+    match /payoutRequests/{payoutId} {
+      allow read: if isOwner(resource.data.agentId);
+      allow create: if isAgent();
+    }
+
+    // Notifications
+    match /notifications/{notifId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+    }
+  }
+}

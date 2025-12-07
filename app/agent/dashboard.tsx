@@ -1,133 +1,422 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  StatusBar,
+  Switch,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { subscribeToAgentOrders, setAgentOnline, updateAgentStatus } from "@/lib/services/firestoreService";
+import { startLocationTracking, type LocationSubscription } from "@/lib/services/locationService";
+import type { Order } from "@/types/models";
 
 export default function Dashboard() {
-  const userName = "John Doe"; // dynamically replace this later with logged-in user's name
+  const { theme, spacing, borderRadius, fontSize, elevation } = useTheme();
+  const { user, agentData } = useAuth();
+
+  const [isOnline, setIsOnline] = useState(false);
+  const [activeOrders, setActiveOrders] = useState<Order[]>([]);
+  const [locationSubscription, setLocationSubscription] = useState<LocationSubscription | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Subscribe to agent's orders
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const unsubscribe = subscribeToAgentOrders(user.id, (orders) => {
+      setActiveOrders(orders);
+      setIsLoading(false);
+    });
+
+    return unsubscribe;
+  }, [user?.id]);
+
+  // Handle online/offline toggle
+  const handleToggleOnline = async (value: boolean) => {
+    if (!user?.id) return;
+
+    try {
+      setIsOnline(value);
+      await setAgentOnline(user.id, value);
+
+      if (value) {
+        // Start location tracking when going online
+        const subscription = await startLocationTracking(user.id);
+        if (subscription) {
+          setLocationSubscription(subscription);
+          Alert.alert("You're Online!", "You'll now receive delivery requests");
+        } else {
+          Alert.alert("Location Error", "Please enable location permissions");
+          setIsOnline(false);
+        }
+      } else {
+        // Stop location tracking when going offline
+        if (locationSubscription) {
+          locationSubscription.remove();
+          setLocationSubscription(null);
+        }
+        await updateAgentStatus(user.id, "offline");
+        Alert.alert("You're Offline", "You won't receive new delivery requests");
+      }
+    } catch (error) {
+      console.error("Error toggling online status:", error);
+      Alert.alert("Error", "Failed to update status");
+      setIsOnline(!value);
+    }
+  };
+
+  const todayEarnings = agentData?.totalEarnings || 0;
+  const totalDeliveries = agentData?.totalDeliveries || 0;
+  const rating = agentData?.rating || 0;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
-      {/* Header with Menu and Notifications */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/agent/menu")}>
-          <Ionicons name="menu" size={24} color="#000" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={["top"]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: theme.primary, ...elevation.md }]}>
+        <TouchableOpacity onPress={() => router.push("/agent/menu" as any)}>
+          <Ionicons name="menu" size={24} color={theme.textInverse} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Delivery Dashboard</Text>
-        <TouchableOpacity onPress={() => router.push("/agent/notifications")}>
-          <View style={styles.notificationContainer}>
-            <Ionicons name="notifications-outline" size={22} color="#000" />
-            {/* Optional: Add notification badge */}
-            <View style={styles.notificationBadge}>
-              <Text style={styles.badgeText}>3</Text>
-            </View>
+        <Text style={[styles.headerTitle, { color: theme.textInverse, fontSize: fontSize.lg }]}>
+          Delivery Dashboard
+        </Text>
+        <TouchableOpacity onPress={() => router.push("/agent/notifications" as any)}>
+          <View>
+            <Ionicons name="notifications-outline" size={24} color={theme.textInverse} />
+            {activeOrders.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: theme.danger }]}>
+                <Text style={[styles.badgeText, { fontSize: fontSize.xs }]}>
+                  {activeOrders.length}
+                </Text>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </View>
 
-      {/* Scrollable Content */}
       <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: spacing.xxxl }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContainer}
       >
-        {/* Welcome Message */}
-        <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeText}>Welcome, {userName} 👋</Text>
-          <Text style={styles.subWelcome}>
-            Ready for your next delivery today?
+        {/* Welcome Section */}
+        <View style={{ padding: spacing.lg }}>
+          <Text style={[styles.welcome, { color: theme.text, fontSize: fontSize.xxl }]}>
+            Welcome, {user?.name || "Agent"}! 👋
+          </Text>
+          <Text style={[styles.subWelcome, { color: theme.textSecondary, fontSize: fontSize.md }]}>
+            {isOnline ? "You're online and ready for deliveries" : "Go online to start earning"}
           </Text>
         </View>
 
-        {/* Active Deliveries with Routing */}
-        <TouchableOpacity onPress={() => router.push("/agent/activeDeliveries")}>
-          <Text style={styles.sectionTitle}>Active Deliveries</Text>
-        </TouchableOpacity>
+        {/* Online/Offline Toggle */}
+        <View
+          style={[
+            styles.statusCard,
+            {
+              backgroundColor: theme.surface,
+              marginHorizontal: spacing.lg,
+              padding: spacing.lg,
+              borderRadius: borderRadius.lg,
+              ...elevation.sm,
+            },
+          ]}
+        >
+          <View style={styles.statusRow}>
+            <View>
+              <Text style={[styles.statusLabel, { color: theme.text, fontSize: fontSize.md }]}>
+                {isOnline ? "🟢 Online" : "⚫ Offline"}
+              </Text>
+              <Text style={[styles.statusSub, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+                {isOnline ? "Accepting deliveries" : "Tap to go online"}
+              </Text>
+            </View>
+            <Switch
+              value={isOnline}
+              onValueChange={handleToggleOnline}
+              trackColor={{ false: theme.borderDark, true: theme.success }}
+              thumbColor={theme.surface}
+            />
+          </View>
+        </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardText}>Order #12345</Text>
-          <Text style={styles.subText}>Restaurant: Pizza Point</Text>
-          <Text style={styles.subText}>Customer: Alex Johnson</Text>
-          <Text style={styles.subText}>ETA: 15 mins</Text>
-          <TouchableOpacity 
-            style={styles.actionBtn}
-            onPress={() => router.push("/agent/activeDeliveries")}
+        {/* Stats */}
+        <View style={[styles.statsContainer, { paddingHorizontal: spacing.lg, marginTop: spacing.lg }]}>
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.surface,
+                padding: spacing.md,
+                borderRadius: borderRadius.md,
+                ...elevation.sm,
+              },
+            ]}
           >
-            <Text style={styles.actionText}>View Details</Text>
-          </TouchableOpacity>
-        </View>
+            <Text style={[styles.statValue, { color: theme.primary, fontSize: fontSize.xl }]}>
+              ${todayEarnings.toFixed(2)}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+              Today's Earnings
+            </Text>
+          </View>
 
-        {/* Delivery Progress */}
-        <Text style={styles.sectionTitle}>Delivery Progress</Text>
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressBar}></View>
-        </View>
-        <View style={styles.progressLabels}>
-          <Text style={styles.progressLabel}>Accepted</Text>
-          <Text style={styles.progressLabel}>On Way</Text>
-          <Text style={styles.progressLabel}>Delivered</Text>
-        </View>
-
-        <View style={styles.row}>
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            onPress={() => router.push("/agent/update-status")}
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.surface,
+                padding: spacing.md,
+                borderRadius: borderRadius.md,
+                ...elevation.sm,
+              },
+            ]}
           >
-            <Text style={styles.secondaryText}>Update Status</Text>
-          </TouchableOpacity>
+            <Text style={[styles.statValue, { color: theme.text, fontSize: fontSize.xl }]}>
+              {totalDeliveries}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+              Total Deliveries
+            </Text>
+          </View>
 
-          <TouchableOpacity
-            style={styles.secondaryOutline}
-            onPress={() => router.push("/agent/live-location")}
+          <View
+            style={[
+              styles.statCard,
+              {
+                backgroundColor: theme.surface,
+                padding: spacing.md,
+                borderRadius: borderRadius.md,
+                ...elevation.sm,
+              },
+            ]}
           >
-            <Text style={styles.secondaryOutlineText}>Send Live Location</Text>
-          </TouchableOpacity>
+            <Text style={[styles.statValue, { color: theme.warning, fontSize: fontSize.xl }]}>
+              ⭐ {rating.toFixed(1)}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+              Rating
+            </Text>
+          </View>
         </View>
 
-        {/* Earnings */}
-        <Text style={styles.sectionTitle}>Earnings</Text>
-        <View style={styles.card}>
-          <Text style={styles.subText}>Today's Earnings: $58.00</Text>
-          <Text style={styles.subText}>Weekly Earnings: $340.00</Text>
-          <View style={styles.rowBetween}>
-            <TouchableOpacity 
-              style={styles.actionBtnSmall}
-              onPress={() => router.push("/agent/earnings")}
+        {/* Active Orders */}
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
+          <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize.lg }]}>
+            Active Deliveries ({activeOrders.length})
+          </Text>
+
+          {isLoading ? (
+            <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: spacing.lg }} />
+          ) : activeOrders.length === 0 ? (
+            <View
+              style={[
+                styles.emptyState,
+                {
+                  backgroundColor: theme.surface,
+                  padding: spacing.xl,
+                  borderRadius: borderRadius.lg,
+                  marginTop: spacing.md,
+                  ...elevation.sm,
+                },
+              ]}
             >
-              <Text style={styles.actionText}>Payout Request</Text>
+              <Ionicons name="bicycle-outline" size={48} color={theme.textSecondary} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: fontSize.md, marginTop: spacing.md }]}>
+                {isOnline ? "No active deliveries" : "Go online to receive orders"}
+              </Text>
+            </View>
+          ) : (
+            activeOrders.map((order) => (
+              <TouchableOpacity
+                key={order.id}
+                style={[
+                  styles.orderCard,
+                  {
+                    backgroundColor: theme.surface,
+                    padding: spacing.lg,
+                    borderRadius: borderRadius.lg,
+                    marginTop: spacing.md,
+                    borderLeftWidth: 4,
+                    borderLeftColor: theme.primary,
+                    ...elevation.md,
+                  },
+                ]}
+                onPress={() => router.push(`/agent/order-details/${order.id}` as any)}
+              >
+                <View style={styles.orderHeader}>
+                  <Text style={[styles.orderId, { color: theme.text, fontSize: fontSize.md }]}>
+                    Order #{order.id.slice(-6)}
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor: theme.primaryDark,
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 4,
+                        borderRadius: borderRadius.sm,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.statusBadgeText, { color: theme.textInverse, fontSize: fontSize.xs }]}>
+                      {order.status.replace("_", " ").toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ marginTop: spacing.sm }}>
+                  <Text style={[styles.orderDetail, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+                    👤 {order.customerName}
+                  </Text>
+                  <Text style={[styles.orderDetail, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+                    📍 {order.deliveryAddress.street}, {order.deliveryAddress.city}
+                  </Text>
+                  <Text style={[styles.orderDetail, { color: theme.text, fontSize: fontSize.md, marginTop: spacing.xs }]}>
+                    💰 ${order.total.toFixed(2)}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.viewBtn,
+                    {
+                      backgroundColor: theme.primary,
+                      padding: spacing.sm,
+                      borderRadius: borderRadius.md,
+                      marginTop: spacing.md,
+                    },
+                  ]}
+                  onPress={() => router.push("/agent/update-status" as any)}
+                >
+                  <Text style={[styles.viewBtnText, { color: theme.textInverse, fontSize: fontSize.md }]}>
+                    Update Status
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.viewAllBtn,
+              {
+                backgroundColor: theme.surface,
+                padding: spacing.md,
+                borderRadius: borderRadius.md,
+                marginTop: spacing.md,
+                borderWidth: 1,
+                borderColor: theme.border,
+              },
+            ]}
+            onPress={() => router.push("/agent/activeDeliveries" as any)}
+          >
+            <Text style={[styles.viewAllText, { color: theme.primary, fontSize: fontSize.md }]}>
+              View All Deliveries →
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
+          <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize.lg }]}>
+            Quick Actions
+          </Text>
+
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity
+              style={[
+                styles.actionCard,
+                {
+                  backgroundColor: theme.surface,
+                  padding: spacing.lg,
+                  borderRadius: borderRadius.md,
+                  ...elevation.sm,
+                },
+              ]}
+              onPress={() => router.push("/agent/earnings" as any)}
+            >
+              <Ionicons name="wallet-outline" size={32} color={theme.primary} />
+              <Text style={[styles.actionText, { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm }]}>
+                Earnings
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push("/agent/earnings")}>
-              <Text style={styles.linkText}>View Full History</Text>
+
+            <TouchableOpacity
+              style={[
+                styles.actionCard,
+                {
+                  backgroundColor: theme.surface,
+                  padding: spacing.lg,
+                  borderRadius: borderRadius.md,
+                  ...elevation.sm,
+                },
+              ]}
+              onPress={() => router.push("/agent/live-location" as any)}
+            >
+              <Ionicons name="navigate-outline" size={32} color={theme.success} />
+              <Text style={[styles.actionText, { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm }]}>
+                Location
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.actionCard,
+                {
+                  backgroundColor: theme.surface,
+                  padding: spacing.lg,
+                  borderRadius: borderRadius.md,
+                  ...elevation.sm,
+                },
+              ]}
+              onPress={() => router.push("/agent/profile" as any)}
+            >
+              <Ionicons name="person-outline" size={32} color={theme.info} />
+              <Text style={[styles.actionText, { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm }]}>
+                Profile
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity onPress={() => router.push("/agent/dashboard")}>
-          <Ionicons name="home" size={26} color="#f8a831" />
+      <View
+        style={[
+          styles.bottomNav,
+          {
+            backgroundColor: theme.surface,
+            borderTopColor: theme.border,
+            ...elevation.lg,
+          },
+        ]}
+      >
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/dashboard" as any)}>
+          <Ionicons name="home" size={24} color={theme.primary} />
+          <Text style={[styles.navText, { color: theme.primary, fontSize: fontSize.xs }]}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/agent/activeDeliveries")}>
-          <Ionicons name="bicycle" size={26} color="#999" />
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/activeDeliveries" as any)}>
+          <MaterialIcons name="delivery-dining" size={28} color={theme.textSecondary} />
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>Deliveries</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/agent/earnings")}>
-          <Ionicons name="wallet" size={26} color="#999" />
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/earnings" as any)}>
+          <Ionicons name="wallet-outline" size={24} color={theme.textSecondary} />
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>Earnings</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/agent/profile")}>
-          <Ionicons name="person" size={26} color="#999" />
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/profile" as any)}>
+          <Ionicons name="person-outline" size={24} color={theme.textSecondary} />
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>Profile</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -135,177 +424,132 @@ export default function Dashboard() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderBottomWidth: 0.3,
-    borderColor: "#ddd",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
+    fontWeight: "700",
   },
-  notificationContainer: {
-    position: "relative",
-  },
-  notificationBadge: {
+  badge: {
     position: "absolute",
     top: -4,
-    right: -6,
-    backgroundColor: "#e53935",
-    borderRadius: 10,
+    right: -4,
     width: 18,
     height: 18,
-    justifyContent: "center",
+    borderRadius: 9,
     alignItems: "center",
+    justifyContent: "center",
   },
   badgeText: {
     color: "#fff",
-    fontSize: 10,
     fontWeight: "700",
   },
-  scrollContainer: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  welcomeContainer: {
-    marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#222",
+  welcome: {
+    fontWeight: "800",
   },
   subWelcome: {
-    fontSize: 14,
-    color: "#777",
     marginTop: 4,
   },
-  sectionTitle: {
-    fontSize: 16,
+  statusCard: {
+    // Dynamic styles from theme
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  statusLabel: {
     fontWeight: "700",
-    marginBottom: 8,
-    color: "#333",
   },
-  card: {
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 20,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+  statusSub: {
+    marginTop: 4,
   },
-  cardText: {
+  statsContainer: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontWeight: "800",
+  },
+  statLabel: {
+    marginTop: 4,
+    textAlign: "center",
+  },
+  sectionTitle: {
+    fontWeight: "700",
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    textAlign: "center",
+  },
+  orderCard: {
+    // Dynamic styles
+  },
+  orderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  orderId: {
+    fontWeight: "700",
+  },
+  statusBadge: {
+    // Dynamic
+  },
+  statusBadgeText: {
+    fontWeight: "700",
+  },
+  orderDetail: {
+    marginTop: 4,
+  },
+  viewBtn: {
+    alignItems: "center",
+  },
+  viewBtnText: {
+    fontWeight: "700",
+  },
+  viewAllBtn: {
+    alignItems: "center",
+  },
+  viewAllText: {
     fontWeight: "600",
-    fontSize: 14,
-    marginBottom: 4,
   },
-  subText: {
-    color: "#444",
-    fontSize: 13,
-    marginBottom: 2,
+  actionsGrid: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 12,
   },
-  actionBtn: {
-    backgroundColor: "#f8a831",
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  actionBtnSmall: {
-    backgroundColor: "#f8a831",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    marginTop: 8,
+  actionCard: {
+    flex: 1,
+    alignItems: "center",
   },
   actionText: {
-    color: "#fff",
+    fontWeight: "600",
     textAlign: "center",
-    fontWeight: "600",
-  },
-  progressBarContainer: {
-    height: 6,
-    backgroundColor: "#f3f3f3",
-    borderRadius: 3,
-    marginVertical: 10,
-  },
-  progressBar: {
-    width: "40%",
-    height: "100%",
-    backgroundColor: "#f0e249",
-    borderRadius: 3,
-  },
-  progressLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  progressLabel: {
-    fontSize: 12,
-    color: "#666",
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  rowBetween: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  secondaryBtn: {
-    backgroundColor: "#f8a831",
-    paddingVertical: 10,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 8,
-  },
-  secondaryOutline: {
-    borderWidth: 1,
-    borderColor: "#f8a831",
-    paddingVertical: 10,
-    borderRadius: 8,
-    flex: 1,
-  },
-  secondaryText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  secondaryOutlineText: {
-    color: "#f8a831",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  linkText: {
-    color: "#f8a831",
-    fontWeight: "600",
   },
   bottomNav: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    borderTopWidth: 1,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  navItem: {
+    flex: 1,
     alignItems: "center",
-    paddingVertical: 14,
-    backgroundColor: "#fff",
-    borderTopWidth: 0.5,
-    borderColor: "#ddd",
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+    gap: 4,
+  },
+  navText: {
+    fontWeight: "600",
   },
 });
