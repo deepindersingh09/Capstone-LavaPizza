@@ -20,16 +20,36 @@ export interface LocationSubscription {
  * Request location permissions
  */
 export const requestLocationPermissions = async (): Promise<boolean> => {
-  const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+  try {
+    const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
 
-  if (foregroundStatus !== "granted") {
+    if (foregroundStatus !== "granted") {
+      console.log("Foreground location permission denied");
+      return false;
+    }
+
+    console.log("Foreground location permission granted");
+
+    // Try to request background permissions, but don't fail if not available (Expo Go limitation)
+    try {
+      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+      if (backgroundStatus === "granted") {
+        console.log("Background location permission granted");
+      } else {
+        console.log("Background location permission denied (foreground only mode)");
+      }
+    } catch (bgError) {
+      console.log(
+        "Background permissions not available (running in Expo Go), using foreground only"
+      );
+    }
+
+    // Return true if we have at least foreground permissions
+    return true;
+  } catch (error) {
+    console.error("Error requesting location permissions:", error);
     return false;
   }
-
-  // Request background permissions for continuous tracking
-  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-
-  return backgroundStatus === "granted";
 };
 
 /**
@@ -99,10 +119,7 @@ export const startLocationTracking = async (
 /**
  * Calculate distance between two coordinates in kilometers
  */
-export const calculateDistance = (
-  coord1: LocationCoords,
-  coord2: LocationCoords
-): number => {
+export const calculateDistance = (coord1: LocationCoords, coord2: LocationCoords): number => {
   const R = 6371; // Earth's radius in km
   const dLat = toRad(coord2.latitude - coord1.latitude);
   const dLon = toRad(coord2.longitude - coord1.longitude);
