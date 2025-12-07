@@ -11,8 +11,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function Earnings() {
+  const { theme, spacing, borderRadius, fontSize, elevation, isDark } = useTheme();
+
   const earningHistory = [
     { id: "ORD-2345", date: "Nov 5, 2025", amount: "$14.50" },
     { id: "ORD-2338", date: "Nov 4, 2025", amount: "$21.00" },
@@ -23,13 +26,13 @@ export default function Earnings() {
 
   // Function to navigate to Payout flow
   const handlePayoutPress = () => {
-    router.push("/agent/payout"); 
+    router.push("/agent/payout" as any);
   };
 
   return (
-    <View style={styles.mainContainer}>
+    <View style={[styles.mainContainer, { backgroundColor: theme.background }]}>
       {/* Set StatusBar color to match header */}
-      <StatusBar barStyle="dark-content" backgroundColor="#f0e249" />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.primary} />
 
       {/* --- Top Navbar Area (Yellow Background) --- */}
       <View style={styles.headerBackground}>
