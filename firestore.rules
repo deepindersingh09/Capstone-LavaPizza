@@ -34,13 +34,11 @@ service cloud.firestore {
       allow write: if isOwner(agentId);
     }
 
-    // Orders collection
+    // Orders collection - RELAXED FOR DEVELOPMENT/TESTING
     match /orders/{orderId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isOwner(resource.data.customerId) ||
-                       isOwner(resource.data.assignedAgentId) ||
-                       isAgent();
+      // Allow all authenticated users to read and write orders
+      // In production, you should restrict this further
+      allow read, write: if isAuthenticated();
     }
 
     // Chats collection
@@ -54,19 +52,17 @@ service cloud.firestore {
 
     // Earnings (agent only)
     match /earnings/{earningId} {
-      allow read: if isOwner(resource.data.agentId);
-      allow create: if isAgent();
+      allow read, write: if isAuthenticated();
     }
 
     // Payout requests
     match /payoutRequests/{payoutId} {
-      allow read: if isOwner(resource.data.agentId);
-      allow create: if isAgent();
+      allow read, write: if isAuthenticated();
     }
 
     // Notifications
     match /notifications/{notifId} {
-      allow read: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
     }
   }
