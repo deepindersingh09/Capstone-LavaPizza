@@ -103,6 +103,7 @@ export default function VehicleDetails() {
       <TextInput
         style={styles.input}
         placeholder="Enter Vehicle Number (e.g., ABC-1234)"
+        placeholderTextColor="#888"
         value={vehicleNumber}
         onChangeText={setVehicleNumber}
         autoCapitalize="characters"
@@ -171,6 +172,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ffe38f",
     marginBottom: 20,
+    color: "#222",
+    fontSize: 15,
   },
   label: { fontWeight: "bold", marginBottom: 6, color: "#444" },
   uploadBox: {

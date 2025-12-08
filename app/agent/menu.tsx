@@ -1,9 +1,21 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, StatusBar, Platform, Image } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Platform,
+  Image,
+} from "react-native";
 import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function MenuPage() {
+  const { theme, spacing, borderRadius, fontSize, elevation, isDark } = useTheme();
   const menuItems = [
     { label: "Profile", icon: "person-outline", route: "/agent/profile" },
     { label: "Vehicle Information", icon: "car-outline", route: "/agent/profile" }, // Link to vehicle page if you have one
@@ -15,69 +27,83 @@ export default function MenuPage() {
   ];
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f0e249" />
-      
-      {/* Header Area */}
-      <View style={styles.header}>
-        <SafeAreaView>
-            <View style={styles.headerTop}>
-                <TouchableOpacity onPress={() => router.back()}>
-                    <Ionicons name="close" size={28} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Menu</Text>
-                <View style={{ width: 28 }} />
-            </View>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.primary}
+      />
 
-            {/* Profile Summary in Menu */}
-            <View style={styles.profileSection}>
-                <View style={styles.avatarContainer}>
-                    <Ionicons name="person" size={40} color="#fff" />
-                </View>
-                <View style={styles.profileText}>
-                    <Text style={styles.name}>John Doe</Text>
-                    <View style={styles.ratingRow}>
-                        <Ionicons name="star" size={16} color="#333" />
-                        <Text style={styles.rating}>4.9 (120 deliveries)</Text>
-                    </View>
-                </View>
+      {/* Header Area */}
+      <View style={[styles.header, { backgroundColor: theme.primary, ...elevation.md }]}>
+        <SafeAreaView>
+          <View style={styles.headerTop}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="close" size={28} color={theme.textInverse} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: theme.textInverse, fontSize: fontSize.lg }]}>
+              Menu
+            </Text>
+            <View style={{ width: 28 }} />
+          </View>
+
+          {/* Profile Summary in Menu */}
+          <View style={styles.profileSection}>
+            <View style={[styles.avatarContainer, { backgroundColor: theme.warning }]}>
+              <Ionicons name="person" size={40} color="#fff" />
             </View>
+            <View style={styles.profileText}>
+              <Text style={[styles.name, { color: theme.textInverse, fontSize: fontSize.xl }]}>
+                John Doe
+              </Text>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={16} color={theme.textInverse} />
+                <Text style={[styles.rating, { color: theme.textInverse, fontSize: fontSize.sm }]}>
+                  4.9 (120 deliveries)
+                </Text>
+              </View>
+            </View>
+          </View>
         </SafeAreaView>
       </View>
 
       {/* Menu Options */}
-      <ScrollView contentContainerStyle={styles.menuList}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
         {menuItems.map((item, index) => (
-          <TouchableOpacity 
-            key={index} 
-            style={styles.menuItem} 
+          <TouchableOpacity
+            key={index}
+            style={[styles.menuItem, { borderBottomColor: theme.border }]}
             onPress={() => router.push(item.route as any)}
           >
             <View style={styles.menuLeft}>
-                <Ionicons name={item.icon as any} size={22} color="#555" />
-                <Text style={styles.menuLabel}>{item.label}</Text>
+              <Ionicons name={item.icon as any} size={22} color={theme.text} />
+              <Text style={[styles.menuLabel, { color: theme.text, fontSize: fontSize.md }]}>
+                {item.label}
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
         ))}
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutBtn} onPress={() => router.replace("/")}>
-            <MaterialIcons name="logout" size={22} color="#e53935" />
-            <Text style={styles.logoutText}>Log Out</Text>
+          <MaterialIcons name="logout" size={22} color={theme.danger} />
+          <Text style={[styles.logoutText, { color: theme.danger, fontSize: fontSize.md }]}>
+            Log Out
+          </Text>
         </TouchableOpacity>
       </ScrollView>
 
       {/* App Version */}
-      <Text style={styles.versionText}>Lava Pizza Driver App v1.0.2</Text>
+      <Text style={[styles.versionText, { color: theme.textTertiary, fontSize: fontSize.xs }]}>
+        Lava Pizza Driver App v1.0.2
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   header: {
-    backgroundColor: "#f0e249",
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
     paddingBottom: 30,
     borderBottomLeftRadius: 30,
@@ -90,8 +116,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#333" },
-  
+  headerTitle: { fontWeight: "700" },
+
   profileSection: {
     flexDirection: "row",
     alignItems: "center",
@@ -102,41 +128,36 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: "#f8a831",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
     borderColor: "#fff",
   },
   profileText: { marginLeft: 15 },
-  name: { fontSize: 22, fontWeight: "700", color: "#333" },
+  name: { fontWeight: "700" },
   ratingRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
-  rating: { marginLeft: 5, color: "#444", fontWeight: "600" },
+  rating: { marginLeft: 5, fontWeight: "600" },
 
-  menuList: { padding: 25 },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
   },
   menuLeft: { flexDirection: "row", alignItems: "center" },
-  menuLabel: { marginLeft: 15, fontSize: 16, color: "#333", fontWeight: "500" },
-  
+  menuLabel: { marginLeft: 15, fontWeight: "500" },
+
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 40,
     paddingVertical: 15,
   },
-  logoutText: { marginLeft: 15, fontSize: 16, color: "#e53935", fontWeight: "700" },
-  
+  logoutText: { marginLeft: 15, fontWeight: "700" },
+
   versionText: {
     textAlign: "center",
-    color: "#ccc",
-    fontSize: 12,
     marginBottom: 20,
   },
 });
