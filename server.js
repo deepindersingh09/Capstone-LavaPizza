@@ -44,7 +44,7 @@ assistant:
 
     // Ask Ollama
     const response = await ollama.generate({
-      model: "llama3.2",      // 👈 MUST match downloaded model
+      model: "llama3.1",      // 👈 MUST match downloaded model
       prompt: finalPrompt,
     });
 
