@@ -147,7 +147,7 @@ export default function LavaChatScreen() {
           value={input}
           onChangeText={setInput}
           placeholder="Ask something..."
-          placeholderTextColor="#BBB"
+          placeholderTextColor="#666"
           multiline
         />
         <TouchableOpacity
@@ -167,13 +167,13 @@ export default function LavaChatScreen() {
 }
 
 /* ---------------------------------------------
-      LAVA PIZZA COLOR SYSTEM & STYLES
+      LAVA PIZZA PROFILE COLOR MATCH
 --------------------------------------------- */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0B1020", // Deep dark background
+    backgroundColor: "#FFFFFF", // match profile background
   },
 
   /* Header */
@@ -183,16 +183,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#1A3164", // Lava Navy
+    backgroundColor: "#FFD700", // gold like logout button
     borderBottomWidth: 1,
-    borderBottomColor: "#FFC800",
+    borderBottomColor: "#FFE082", // soft yellow border (banner style)
   },
   backText: {
-    color: "#FFF2B8", // cream
+    color: "#92400E", // warm brown, like banner subtitle tone
     fontSize: 16,
   },
   headerTitle: {
-    color: "#FFC800",
+    color: "#333", // dark text
     fontSize: 20,
     fontWeight: "700",
   },
@@ -201,6 +201,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 12,
     paddingVertical: 14,
+    backgroundColor: "#FFFFFF",
   },
 
   /* Message Bubble Containers */
@@ -223,16 +224,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
 
+  // User = stronger gold like actions
   userBubble: {
     marginLeft: "20%",
-    backgroundColor: "#FFC800", // Lava Yellow
+    backgroundColor: "#FFD700", // same as logout button
     borderBottomRightRadius: 6,
   },
 
+  // Bot = soft yellow card like banner
   botBubble: {
     marginRight: "20%",
-    backgroundColor: "#1F2937", // Dark card grey
+    backgroundColor: "#FFF8E1", // banner background
     borderBottomLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: "#FFE082",
   },
 
   messageText: {
@@ -241,12 +246,12 @@ const styles = StyleSheet.create({
   },
 
   userText: {
-    color: "#1A1A1A", // dark black text
+    color: "#333", // dark text
     fontWeight: "600",
   },
 
   botText: {
-    color: "#FFF2B8", // cream
+    color: "#92400E", // warm text (banner subtitle color)
   },
 
   /* Input Section */
@@ -254,8 +259,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 10,
     borderTopWidth: 1,
-    borderTopColor: "#1A3164",
-    backgroundColor: "#0B1020",
+    borderTopColor: "#DDD",
+    backgroundColor: "#FFF8E1", // light yellow like banner
   },
   input: {
     flex: 1,
@@ -263,10 +268,12 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#111827",
-    color: "#FFF",
+    backgroundColor: "#FFFFFF",
+    color: "#333",
     borderRadius: 16,
     fontSize: 14,
+    borderWidth: 1,
+    borderColor: "#DDD",
   },
 
   /* Send Button */
@@ -275,7 +282,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: "#FF6B00", // Lava Orange
+    backgroundColor: "#E53935", // same red as guest name
     justifyContent: "center",
     alignItems: "center",
   },
