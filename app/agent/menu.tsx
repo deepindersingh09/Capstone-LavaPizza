@@ -18,12 +18,12 @@ export default function MenuPage() {
   const { theme, spacing, borderRadius, fontSize, elevation, isDark } = useTheme();
   const menuItems = [
     { label: "Profile", icon: "person-outline", route: "/agent/profile" },
-    { label: "Vehicle Information", icon: "car-outline", route: "/agent/profile" }, // Link to vehicle page if you have one
-    { label: "Shift Schedule", icon: "calendar-outline", route: "/agent/dashboard" },
+    { label: "Vehicle Information", icon: "car-outline", route: "/agent/help-support" },
+    { label: "Shift Schedule", icon: "calendar-outline", route: "/agent/shift-schedule" },
     { label: "Earnings & Payouts", icon: "wallet-outline", route: "/agent/earnings" },
     { label: "Delivery History", icon: "time-outline", route: "/agent/earnings" },
-    { label: "Settings", icon: "settings-outline", route: "/agent/dashboard" },
-    { label: "Help & Support", icon: "help-circle-outline", route: "/agent/dashboard" },
+    { label: "Settings", icon: "settings-outline", route: "/agent/settings" },
+    { label: "Help & Support", icon: "help-circle-outline", route: "/agent/help-support" },
   ];
 
   return (

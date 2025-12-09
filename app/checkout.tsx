@@ -1,5 +1,5 @@
 // app/(drawer)/(tabs)/checkout.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,22 +10,26 @@ import {
   SafeAreaView,
   TextInput,
   ActivityIndicator,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function CheckoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const totalAmount = parseFloat(params.total as string) || 0;
+  const { user, firebaseUser } = useAuth();
 
   const [cartItems, setCartItems] = useState<any[]>([]);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>('card');
-  const [cardNumber, setCardNumber] = useState('');
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">("card");
+  const [cardNumber, setCardNumber] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -35,39 +39,39 @@ export default function CheckoutScreen() {
 
   const loadCartItems = async () => {
     try {
-      const cartData = await AsyncStorage.getItem('@cart');
+      const cartData = await AsyncStorage.getItem("@cart");
       const cart = cartData ? JSON.parse(cartData) : [];
       setCartItems(cart);
-      console.log('Loaded cart items:', cart.length);
+      console.log("Loaded cart items:", cart.length);
     } catch (error) {
-      console.error('Error loading cart:', error);
+      console.error("Error loading cart:", error);
     }
   };
 
   const loadUserInfo = async () => {
     try {
-      const savedName = await AsyncStorage.getItem('@user_first_name');
+      const savedName = await AsyncStorage.getItem("@user_first_name");
       if (savedName) setName(savedName);
     } catch (error) {
-      console.error('Error loading user info:', error);
+      console.error("Error loading user info:", error);
     }
   };
 
   const validateForm = () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      Alert.alert("Error", "Please enter your name");
       return false;
     }
     if (!phone.trim() || phone.length < 10) {
-      Alert.alert('Error', 'Please enter a valid phone number (at least 10 digits)');
+      Alert.alert("Error", "Please enter a valid phone number (at least 10 digits)");
       return false;
     }
     if (!address.trim()) {
-      Alert.alert('Error', 'Please enter your delivery address');
+      Alert.alert("Error", "Please enter your delivery address");
       return false;
     }
-    if (paymentMethod === 'card' && (!cardNumber.trim() || cardNumber.length < 16)) {
-      Alert.alert('Error', 'Please enter a valid 16-digit card number');
+    if (paymentMethod === "card" && (!cardNumber.trim() || cardNumber.length < 16)) {
+      Alert.alert("Error", "Please enter a valid 16-digit card number");
       return false;
     }
     return true;
@@ -77,54 +81,128 @@ export default function CheckoutScreen() {
     if (!validateForm()) return;
 
     if (cartItems.length === 0) {
-      Alert.alert('Cart Empty', 'Please add items to your cart first');
+      Alert.alert("Cart Empty", "Please add items to your cart first");
       return;
     }
 
     setLoading(true);
 
-    // Simulate payment processing
-    setTimeout(async () => {
-      try {
-        const order = {
-          id: Date.now().toString(),
-          items: cartItems,
-          total: totalAmount,
-          name,
-          phone,
-          address,
-          paymentMethod,
-          date: new Date().toISOString(),
-          status: 'placed',
-        };
+    try {
+      // Get customer ID
+      const customerId = user?.id || firebaseUser?.uid || "guest-" + Date.now();
 
-        const ordersData = await AsyncStorage.getItem('@orders');
-        const orders = ordersData ? JSON.parse(ordersData) : [];
-        orders.unshift(order);
-        await AsyncStorage.setItem('@orders', JSON.stringify(orders));
+      // Parse address (simple parsing - you can enhance this)
+      const addressParts = address.split(",").map((part) => part.trim());
+      const street = addressParts[0] || address;
+      const city = addressParts[1] || "Calgary";
+      const province = addressParts[2] || "AB";
+      const postalCode = addressParts[3] || "T2P 1J9";
 
-        await AsyncStorage.removeItem('@cart');
+      // Convert cart items to order items format
+      const orderItems = cartItems.map((item, index) => ({
+        id: item.id || `item-${index}`,
+        name: item.name,
+        quantity: item.quantity || 1,
+        price: item.price,
+        customizations: item.size ? [`Size: ${item.size}`] : [],
+      }));
 
-        setLoading(false);
+      // Calculate fees
+      const subtotal = totalAmount;
+      const deliveryFee = 5.0;
+      const tax = subtotal * 0.05; // 5% tax
+      const total = subtotal + deliveryFee + tax;
 
-        Alert.alert(
-          '🎉 Order Placed Successfully!',
-          `Order #${order.id.slice(-6)}\n\nYour delicious pizza will arrive in 30-45 minutes!\n\nTotal: $${totalAmount.toFixed(2)}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                router.replace('/(drawer)/(tabs)/home');
-              },
+      // Create Firestore order document
+      const firestoreOrder = {
+        customerId,
+        customerName: name,
+        customerPhone: phone,
+        items: orderItems,
+        subtotal,
+        deliveryFee,
+        tip: 0,
+        tax,
+        total,
+        status: "pending",
+        deliveryAddress: {
+          street,
+          city,
+          province,
+          postalCode,
+          country: "Canada",
+          location: {
+            latitude: 51.0447, // Default Calgary coordinates
+            longitude: -114.0719,
+          },
+        },
+        restaurantAddress: {
+          street: "123 Pizza Street",
+          city: "Calgary",
+          province: "AB",
+          postalCode: "T2P 0A0",
+          country: "Canada",
+          location: {
+            latitude: 51.0486,
+            longitude: -114.0708,
+          },
+        },
+        assignedAgentId: null,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        statusHistory: [
+          {
+            status: "pending",
+            timestamp: Timestamp.now(),
+            note: "Order placed by customer",
+          },
+        ],
+      };
+
+      // Save to Firestore
+      const docRef = await addDoc(collection(db, "orders"), firestoreOrder);
+      console.log("Order created in Firestore with ID:", docRef.id);
+
+      // Also save to AsyncStorage for local order history
+      const localOrder = {
+        id: docRef.id,
+        items: cartItems,
+        total: totalAmount,
+        name,
+        phone,
+        address,
+        paymentMethod,
+        date: new Date().toISOString(),
+        status: "placed",
+      };
+
+      const ordersData = await AsyncStorage.getItem("@orders");
+      const orders = ordersData ? JSON.parse(ordersData) : [];
+      orders.unshift(localOrder);
+      await AsyncStorage.setItem("@orders", JSON.stringify(orders));
+
+      // Clear cart
+      await AsyncStorage.removeItem("@cart");
+
+      setLoading(false);
+
+      Alert.alert(
+        "🎉 Order Placed Successfully!",
+        `Order #${docRef.id.slice(-6)}\n\nYour delicious pizza will arrive in 30-45 minutes!\n\nA delivery agent will be assigned shortly.\n\nTotal: $${total.toFixed(2)}`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              router.replace("/(drawer)/(tabs)/home");
             },
-          ]
-        );
-      } catch (error) {
-        setLoading(false);
-        console.error('Error placing order:', error);
-        Alert.alert('Error', 'Failed to place order. Please try again.');
-      }
-    }, 2000);
+          },
+        ]
+      );
+    } catch (error) {
+      setLoading(false);
+      console.error("Error placing order:", error);
+      Alert.alert("Error", "Failed to place order. Please try again.");
+    }
   };
 
   return (
@@ -154,9 +232,7 @@ export default function CheckoutScreen() {
                   <Text style={styles.orderItemName} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  {item.size && (
-                    <Text style={styles.orderItemDetail}>Size: {item.size}</Text>
-                  )}
+                  {item.size && <Text style={styles.orderItemDetail}>Size: {item.size}</Text>}
                   {item.quantity && item.quantity > 1 && (
                     <Text style={styles.orderItemDetail}>Qty: {item.quantity}</Text>
                   )}
@@ -219,21 +295,18 @@ export default function CheckoutScreen() {
           </Text>
 
           <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              paymentMethod === 'card' && styles.paymentOptionSelected,
-            ]}
-            onPress={() => setPaymentMethod('card')}
+            style={[styles.paymentOption, paymentMethod === "card" && styles.paymentOptionSelected]}
+            onPress={() => setPaymentMethod("card")}
             activeOpacity={0.8}
           >
             <View style={styles.radioButton}>
-              {paymentMethod === 'card' && <View style={styles.radioButtonInner} />}
+              {paymentMethod === "card" && <View style={styles.radioButtonInner} />}
             </View>
             <Ionicons name="card" size={24} color="#FFC107" style={styles.paymentIcon} />
             <Text style={styles.paymentText}>Credit/Debit Card</Text>
           </TouchableOpacity>
 
-          {paymentMethod === 'card' && (
+          {paymentMethod === "card" && (
             <View style={styles.cardInputContainer}>
               <Text style={styles.inputLabel}>Card Number *</Text>
               <TextInput
@@ -249,15 +322,12 @@ export default function CheckoutScreen() {
           )}
 
           <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              paymentMethod === 'cash' && styles.paymentOptionSelected,
-            ]}
-            onPress={() => setPaymentMethod('cash')}
+            style={[styles.paymentOption, paymentMethod === "cash" && styles.paymentOptionSelected]}
+            onPress={() => setPaymentMethod("cash")}
             activeOpacity={0.8}
           >
             <View style={styles.radioButton}>
-              {paymentMethod === 'cash' && <View style={styles.radioButtonInner} />}
+              {paymentMethod === "cash" && <View style={styles.radioButtonInner} />}
             </View>
             <Ionicons name="cash" size={24} color="#FFC107" style={styles.paymentIcon} />
             <Text style={styles.paymentText}>Cash on Delivery</Text>
@@ -278,9 +348,7 @@ export default function CheckoutScreen() {
           {loading ? (
             <ActivityIndicator color="#1A1A1A" />
           ) : (
-            <Text style={styles.placeOrderText}>
-              Place Order — ${totalAmount.toFixed(2)}
-            </Text>
+            <Text style={styles.placeOrderText}>Place Order — ${totalAmount.toFixed(2)}</Text>
           )}
           {!loading && (
             <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
@@ -295,43 +363,43 @@ const styles = StyleSheet.create({
   // Base & header — aligned with Cart screen
   container: {
     flex: 1,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: "#F8F8F8",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: "#E8E8E8",
   },
   backButton: { padding: 4 },
   headerTitle: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: "700",
+    color: "#1A1A1A",
     marginBottom: 4,
-    textAlign: 'center',
+    textAlign: "center",
   },
   headerSub: {
     fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-    textAlign: 'center',
+    color: "#666",
+    fontWeight: "500",
+    textAlign: "center",
   },
   scrollView: { flex: 1, paddingHorizontal: 16 },
 
   // Sections & cards
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 16,
     marginTop: 16,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E8E8E8',
-    shadowColor: '#000',
+    borderColor: "#E8E8E8",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -339,123 +407,123 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: "700",
+    color: "#1A1A1A",
     marginBottom: 12,
   },
 
   // Order summary box styled like Cart summary
   summaryBox: {
-    backgroundColor: '#FFFBF5',
+    backgroundColor: "#FFFBF5",
     borderRadius: 12,
     padding: 12,
     borderWidth: 1.5,
-    borderColor: '#FFE082',
+    borderColor: "#FFE082",
   },
   orderItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: "#F0F0F0",
   },
   orderItemInfo: { flex: 1, marginRight: 12 },
   orderItemName: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: "700",
+    color: "#1A1A1A",
     marginBottom: 2,
   },
-  orderItemDetail: { fontSize: 12, color: '#666' },
+  orderItemDetail: { fontSize: 12, color: "#666" },
   orderItemPrice: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#FFC107',
+    fontWeight: "700",
+    color: "#FFC107",
   },
   divider: {
     height: 1,
-    backgroundColor: '#FFE082',
+    backgroundColor: "#FFE082",
     marginVertical: 8,
   },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
-  totalLabel: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  totalAmount: { fontSize: 18, fontWeight: '700', color: '#FFC107' },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 4 },
+  totalLabel: { fontSize: 18, fontWeight: "700", color: "#1A1A1A" },
+  totalAmount: { fontSize: 18, fontWeight: "700", color: "#FFC107" },
 
   // Inputs
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 8,
     marginTop: 8,
-    color: '#1A1A1A',
+    color: "#1A1A1A",
   },
   input: {
     borderWidth: 1.5,
-    borderColor: '#E8E8E8',
+    borderColor: "#E8E8E8",
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
-  textArea: { height: 100, textAlignVertical: 'top' },
+  textArea: { height: 100, textAlignVertical: "top" },
 
   // Payment options — match yellow scheme
   paymentOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 14,
     borderWidth: 1.5,
-    borderColor: '#E8E8E8',
+    borderColor: "#E8E8E8",
     borderRadius: 12,
     marginBottom: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   paymentOptionSelected: {
-    borderColor: '#FFE082',
-    backgroundColor: '#FFFBF5',
+    borderColor: "#FFE082",
+    backgroundColor: "#FFFBF5",
   },
   radioButton: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#FFC107',
+    borderColor: "#FFC107",
     marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   radioButtonInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#FFC107',
+    backgroundColor: "#FFC107",
   },
   paymentIcon: { marginRight: 10 },
-  paymentText: { fontSize: 16, fontWeight: '600', color: '#1A1A1A' },
+  paymentText: { fontSize: 16, fontWeight: "600", color: "#1A1A1A" },
   cardInputContainer: { marginBottom: 4 },
 
   // Footer & CTA — match Cart
   footer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 24,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
-    shadowColor: '#000',
+    borderTopColor: "#E8E8E8",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 8,
   },
   placeOrderButton: {
-    backgroundColor: '#FFC107',
+    backgroundColor: "#FFC107",
     paddingVertical: 18,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    shadowColor: '#FFC107',
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    shadowColor: "#FFC107",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -464,7 +532,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.6 },
   placeOrderText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: "700",
+    color: "#1A1A1A",
   },
 });

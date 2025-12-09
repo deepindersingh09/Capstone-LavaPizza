@@ -32,7 +32,10 @@ export default function Earnings() {
   return (
     <View style={[styles.mainContainer, { backgroundColor: theme.background }]}>
       {/* Set StatusBar color to match header */}
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.primary} />
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.primary}
+      />
 
       {/* --- Top Navbar Area (Yellow Background) --- */}
       <View style={styles.headerBackground}>
@@ -41,12 +44,12 @@ export default function Earnings() {
             <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
-            
+
             <Text style={styles.topTitle}>Earnings & Payouts</Text>
-            
+
             {/* Wallet Icon - Navigates to Payout */}
             <TouchableOpacity onPress={handlePayoutPress}>
-                <Ionicons name="wallet-outline" size={24} color="#333" />
+              <Ionicons name="wallet-outline" size={24} color="#333" />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -77,7 +80,7 @@ export default function Earnings() {
 
         {/* --- Earning History --- */}
         <Text style={styles.sectionTitle}>Earning History</Text>
-        
+
         <ScrollView
           style={styles.scrollArea}
           contentContainerStyle={{ paddingBottom: 100 }} // padding for bottom bar
@@ -97,34 +100,34 @@ export default function Earnings() {
 
       {/* --- Bottom Navigation Bar --- */}
       <View style={styles.bottomBarWrapper}>
-         <View style={styles.bottomBar}>
-            <TouchableOpacity onPress={() => router.push("/agent/dashboard")}>
-              <Ionicons name="home-outline" size={24} color="#333" />
-            </TouchableOpacity>
+        <View style={styles.bottomBar}>
+          <TouchableOpacity onPress={() => router.push("/agent/dashboard" as any)}>
+            <Ionicons name="home-outline" size={24} color="#333" />
+          </TouchableOpacity>
 
-            <TouchableOpacity>
-              <MaterialIcons name="delivery-dining" size={28} color="#333" />
-            </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/agent/activeDeliveries" as any)}>
+            <MaterialIcons name="delivery-dining" size={28} color="#333" />
+          </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push("/agent/earnings")}>
-              <Ionicons name="wallet" size={26} color="#f8a831" />
-            </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/agent/earnings" as any)}>
+            <Ionicons name="wallet" size={26} color="#f8a831" />
+          </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push("/agent/profile")}>
-              <Ionicons name="person-outline" size={26} color="#333" />
-            </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/agent/profile" as any)}>
+            <Ionicons name="person-outline" size={26} color="#333" />
+          </TouchableOpacity>
         </View>
         {/* Handle iPhone Home Indicator safe area */}
-        <SafeAreaView edges={['bottom']} style={{backgroundColor: '#fff'}}/>
+        <SafeAreaView edges={["bottom"]} style={{ backgroundColor: "#fff" }} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  mainContainer: { 
-    flex: 1, 
-    backgroundColor: "#fff9ed" 
+  mainContainer: {
+    flex: 1,
+    backgroundColor: "#fff9ed",
   },
   contentContainer: {
     flex: 1,
@@ -149,25 +152,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
   },
-  topTitle: { 
-    fontSize: 18, 
-    fontWeight: "700", 
+  topTitle: {
+    fontSize: 18,
+    fontWeight: "700",
     color: "#333",
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   // --- Summary Section ---
   summaryContainer: {
     flexDirection: "row",
-    justifyContent: "space-between", 
+    justifyContent: "space-between",
     marginTop: 20,
-    paddingHorizontal: 20, 
+    paddingHorizontal: 20,
   },
   summaryCard: {
     backgroundColor: "#fff",
     paddingVertical: 15,
     borderRadius: 12,
-    width: "31%", 
+    width: "31%",
     alignItems: "center",
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -180,7 +183,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryAmount: {
-    fontSize: 15, 
+    fontSize: 15,
     fontWeight: "800",
     color: "#222",
   },
@@ -191,7 +194,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 24,
     paddingVertical: 14,
-    borderRadius: 12, 
+    borderRadius: 12,
     elevation: 3,
     shadowColor: "#f8a831",
     shadowOpacity: 0.4,
@@ -221,7 +224,7 @@ const styles = StyleSheet.create({
   historyCard: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center", 
+    alignItems: "center",
     backgroundColor: "#fff",
     marginHorizontal: 20,
     marginBottom: 12,
@@ -268,6 +271,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 0 : 12, 
+    paddingBottom: Platform.OS === "ios" ? 0 : 12,
   },
 });

@@ -12,7 +12,12 @@
       "Bash(git commit:*)",
       "Bash(npx eslint --version)",
       "Bash(git reset:*)",
-      "Bash(npx expo start:*)"
+      "Bash(npx expo start:*)",
+      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\\agent\")",
+      "Bash(taskkill:*)",
+      "Bash(echo:*)",
+      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\" /b)",
+      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\\agent\" /b)"
     ],
     "deny": [],
     "ask": []

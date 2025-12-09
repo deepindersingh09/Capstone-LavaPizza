@@ -103,7 +103,7 @@ export default function SignupDelivery() {
 
       <Text style={styles.signInText}>
         Already have an account?{" "}
-        <Link href="/auth/login" style={styles.signInLink}>
+        <Link href="/auth/login-agent" style={styles.signInLink}>
           Sign in
         </Link>
       </Text>

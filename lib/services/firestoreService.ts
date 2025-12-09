@@ -22,7 +22,8 @@ import {
   WhereFilterOp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type {
+import { storage } from "@/lib/firebase";
+import {
   Order,
   DeliveryAgent,
   Chat,
@@ -31,6 +32,7 @@ import type {
   PayoutRequest,
   Notification,
 } from "@/types/models";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // ============================================================================
 // ORDERS
@@ -68,7 +70,7 @@ export const updateOrderStatus = async (
     location,
   };
 
-  await updateDoc(orderRef,{
+  await updateDoc(orderRef, {
     status,
     updatedAt: Timestamp.now(),
     statusHistory: [...(await getOrder(orderId))!.statusHistory, statusChange],
@@ -116,14 +118,46 @@ export const subscribeToAgentOrders = (agentId: string, callback: (orders: Order
   });
 };
 
+// Real-time listener for a single order
+export const subscribeToOrder = (orderId: string, callback: (order: Order | null) => void) => {
+  const docRef = doc(db, "orders", orderId);
+  return onSnapshot(docRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback({ id: snapshot.id, ...snapshot.data() } as Order);
+    } else {
+      callback(null);
+    }
+  });
+};
+
+// Add tip to an order
+export const addTipToOrder = async (orderId: string, tipAmount: number) => {
+  const orderRef = doc(db, "orders", orderId);
+  await updateDoc(orderRef, {
+    tip: tipAmount,
+    updatedAt: Timestamp.now(),
+  });
+};
+
+// Add customer rating to an order
+export const addRatingToOrder = async (orderId: string, rating: number, comment?: string) => {
+  const orderRef = doc(db, "orders", orderId);
+  await updateDoc(orderRef, {
+    rating,
+    ratingComment: comment || "",
+    ratedAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+};
+
 // ============================================================================
 // DELIVERY AGENTS
 // ============================================================================
 
 export const agentsCollection = collection(db, "agents");
 
-export const createAgent = async (agentData: Omit<DeliveryAgent, "id">) => {
-  const docRef = doc(db, "agents", agentData.id); // Use auth UID as document ID
+export const createAgent = async (agentData: Omit<DeliveryAgent, "id">, agentId: string) => {
+  const docRef = doc(db, "agents", agentId); // Use auth UID as document ID
   await setDoc(docRef, {
     ...agentData,
     createdAt: Timestamp.now(),
@@ -171,6 +205,23 @@ export const setAgentOnline = async (agentId: string, isOnline: boolean) => {
   });
 };
 
+export const updateAgentProfile = async (agentId: string, data: Partial<DeliveryAgent>) => {
+  const agentRef = doc(db, "agents", agentId);
+  await updateDoc(agentRef, {
+    ...data,
+    updatedAt: Timestamp.now(),
+  });
+};
+
+export async function uploadImageAndGetURL(uri: string, path: string) {
+  const img = await fetch(uri);
+  const bytes = await img.blob();
+
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, bytes);
+  return getDownloadURL(storageRef);
+}
+
 // Get nearby available agents (requires geohash filtering)
 export const getNearbyAgents = async (
   geohashPrefix: string,
@@ -192,7 +243,10 @@ export const getNearbyAgents = async (
 };
 
 // Real-time listener for agent data
-export const subscribeToAgent = (agentId: string, callback: (agent: DeliveryAgent | null) => void) => {
+export const subscribeToAgent = (
+  agentId: string,
+  callback: (agent: DeliveryAgent | null) => void
+) => {
   const docRef = doc(db, "agents", agentId);
   return onSnapshot(docRef, (snapshot) => {
     if (snapshot.exists()) {
@@ -248,14 +302,18 @@ export const sendMessage = async (
   await updateDoc(chatRef, {
     lastMessage: text,
     lastMessageTimestamp: Timestamp.now(),
-    [`unreadCount.${recipientRole}`]: (await getDoc(chatRef)).data()?.unreadCount[recipientRole] + 1 || 1,
+    [`unreadCount.${recipientRole}`]:
+      (await getDoc(chatRef)).data()?.unreadCount[recipientRole] + 1 || 1,
   });
 
   return docRef.id;
 };
 
 // Real-time listener for chat messages
-export const subscribeToChatMessages = (chatId: string, callback: (messages: Message[]) => void) => {
+export const subscribeToChatMessages = (
+  chatId: string,
+  callback: (messages: Message[]) => void
+) => {
   const messagesRef = collection(db, "chats", chatId, "messages");
   const q = query(messagesRef, orderBy("createdAt", "asc"));
 
@@ -320,7 +378,10 @@ export const createNotification = async (notificationData: Omit<Notification, "i
   return docRef.id;
 };
 
-export const subscribeToUserNotifications = (userId: string, callback: (notifications: Notification[]) => void) => {
+export const subscribeToUserNotifications = (
+  userId: string,
+  callback: (notifications: Notification[]) => void
+) => {
   const q = query(
     notificationsCollection,
     where("userId", "==", userId),

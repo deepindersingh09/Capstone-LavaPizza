@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,15 @@ import {
   Image,
   Switch,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
+import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Profile() {
   const { theme, spacing, borderRadius, fontSize, elevation, isDark, toggleTheme } = useTheme();
@@ -22,12 +25,88 @@ export default function Profile() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isAvailable, setIsAvailable] = useState(true);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
   const [profile, setProfile] = useState({
     name: user?.name || "Delivery Agent",
     email: user?.email || "agent@example.com",
     phone: user?.phone || "+1 234-567-8900",
     location: "Calgary, AB",
   });
+
+  // Load saved profile image on mount
+  useEffect(() => {
+    loadProfileImage();
+  }, []);
+
+  const loadProfileImage = async () => {
+    try {
+      const savedImage = await AsyncStorage.getItem("@profile_image");
+      if (savedImage) {
+        setProfileImage(savedImage);
+      }
+    } catch (error) {
+      console.error("Error loading profile image:", error);
+    }
+  };
+
+  const handleChangeProfilePicture = async () => {
+    Alert.alert("Change Profile Picture", "Choose how to add your photo", [
+      {
+        text: "Take Photo",
+        onPress: () => pickImage("camera"),
+      },
+      {
+        text: "Choose from Gallery",
+        onPress: () => pickImage("gallery"),
+      },
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+    ]);
+  };
+
+  const pickImage = async (source: "camera" | "gallery") => {
+    try {
+      if (source === "camera") {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Permission Required", "Camera permission is required to take photos.");
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("Permission Required", "Gallery permission is required to choose photos.");
+          return;
+        }
+      }
+
+      setImageLoading(true);
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        setProfileImage(imageUri);
+
+        // Save to AsyncStorage
+        await AsyncStorage.setItem("@profile_image", imageUri);
+        Alert.alert("Success", "Profile picture updated successfully!");
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to update profile picture.");
+    } finally {
+      setImageLoading(false);
+    }
+  };
 
   const handleEditToggle = () => setIsEditing(!isEditing);
 
@@ -81,12 +160,36 @@ export default function Profile() {
             },
           ]}
         >
-          <Image
-            source={{
-              uri: "https://cdn-icons-png.flaticon.com/512/219/219983.png",
-            }}
-            style={styles.avatar}
-          />
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={handleChangeProfilePicture}
+            activeOpacity={0.8}
+          >
+            {imageLoading ? (
+              <View
+                style={[
+                  styles.avatar,
+                  { justifyContent: "center", alignItems: "center", backgroundColor: theme.border },
+                ]}
+              >
+                <ActivityIndicator size="large" color={theme.primary} />
+              </View>
+            ) : (
+              <>
+                <Image
+                  source={
+                    profileImage
+                      ? { uri: profileImage }
+                      : { uri: "https://cdn-icons-png.flaticon.com/512/219/219983.png" }
+                  }
+                  style={styles.avatar}
+                />
+                <View style={[styles.cameraIconContainer, { backgroundColor: theme.primary }]}>
+                  <Ionicons name="camera" size={18} color={theme.textInverse} />
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
           <View style={styles.infoContainer}>
             {isEditing ? (
               <>
@@ -355,13 +458,22 @@ export default function Profile() {
           style={styles.navItem}
           onPress={() => router.push("/agent/activeDeliveries" as any)}
         >
-          <MaterialIcons name="delivery-dining" size={26} color={theme.textSecondary} />
+          <MaterialIcons name="delivery-dining" size={28} color={theme.textSecondary} />
           <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
             Deliveries
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/earnings" as any)}
+        >
+          <Ionicons name="wallet-outline" size={24} color={theme.textSecondary} />
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
+            Earnings
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="person" size={26} color={theme.primary} />
+          <Ionicons name="person-outline" size={24} color={theme.primary} />
           <Text style={[styles.navText, { color: theme.primary, fontSize: fontSize.xs }]}>
             Profile
           </Text>
@@ -385,7 +497,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
   },
+  avatarContainer: {
+    position: "relative",
+  },
   avatar: { width: 80, height: 80, borderRadius: 40, marginRight: 15 },
+  cameraIconContainer: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   infoContainer: { flex: 1 },
   name: { fontWeight: "600" },
   detail: { marginTop: 3 },

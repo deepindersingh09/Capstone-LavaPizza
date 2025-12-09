@@ -18,6 +18,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   agentData: DeliveryAgent | null;
+  refreshAgentData: () => Promise<void>;
   customerData: Customer | null;
 }
 
@@ -80,6 +81,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const refreshAgentData = async () => {
+    if (firebaseUser) {
+      setIsLoading(true);
+      await loadUserData(firebaseUser.uid);
+      setIsLoading(false);
+    }
+  };
   const isAgent = user?.role === "agent";
   const isCustomer = user?.role === "customer";
   const isAdmin = user?.role === "admin";
@@ -92,6 +100,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAdmin,
     isLoading,
     agentData,
+    refreshAgentData,
     customerData,
   };
 

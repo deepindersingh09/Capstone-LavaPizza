@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -14,63 +14,114 @@ import { router } from "expo-router";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  subscribeToAgentOrders,
   subscribeToPendingOrders,
   assignAgentToOrder,
   updateAgentStatus,
+  getAgent,
 } from "@/lib/services/firestoreService";
 import type { Order } from "@/types/models";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function ActiveDeliveries() {
   const { theme, spacing, borderRadius, fontSize, elevation } = useTheme();
-  const { user } = useAuth();
+  const { user, agentData, firebaseUser } = useAuth();
+  const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Subscribe to agent's active orders
+  useEffect(() => {
+    const agentId = user?.id || agentData?.id || firebaseUser?.uid;
+    if (!agentId) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = subscribeToAgentOrders(agentId, (orders) => {
+      setActiveOrders(orders);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [user?.id, agentData?.id, firebaseUser?.uid]);
+
+  // Subscribe to pending orders
   useEffect(() => {
     const unsubscribe = subscribeToPendingOrders((orders) => {
       setPendingOrders(orders);
-      setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
   const handleAcceptOrder = async (order: Order) => {
-    if (!user?.id || !user?.name) {
-      Alert.alert("Error", "User not authenticated");
+    const agentId = user?.id || agentData?.id || firebaseUser?.uid;
+    const agentName =
+      user?.name ||
+      agentData?.name ||
+      firebaseUser?.displayName ||
+      firebaseUser?.email?.split("@")[0] ||
+      "Agent";
+    const agentEmail = user?.email || agentData?.email || firebaseUser?.email || "";
+
+    if (!agentId) {
+      Alert.alert("Error", "Please login to accept orders");
+      router.replace("/auth/login" as any);
       return;
     }
 
     try {
-      await assignAgentToOrder(order.id, user.id, user.name);
-      await updateAgentStatus(user.id, "enroute");
+      // Ensure agent documents exist
+      const existingAgent = await getAgent(agentId);
+      if (!existingAgent) {
+        await setDoc(doc(db, "users", agentId), {
+          id: agentId,
+          name: agentName,
+          email: agentEmail,
+          role: "agent",
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+
+        await setDoc(doc(db, "agents", agentId), {
+          id: agentId,
+          name: agentName,
+          email: agentEmail,
+          phone: "",
+          vehicleType: "bike",
+          vehicleNumber: "",
+          vehicleColor: "",
+          status: "available",
+          isOnline: true,
+          isVerified: false,
+          rating: 0,
+          totalDeliveries: 0,
+          totalEarnings: 0,
+          currentLocation: { latitude: 0, longitude: 0 },
+          geohash: "",
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+      }
+
+      await assignAgentToOrder(order.id, agentId, agentName);
+
+      try {
+        await updateAgentStatus(agentId, "enroute");
+      } catch (statusError) {
+        console.log("Status update skipped:", statusError);
+      }
 
       Alert.alert("Order Accepted!", `Order #${order.id.slice(-6)} assigned to you`);
-      router.push("/agent/dashboard" as any);
     } catch (error) {
-      Alert.alert("Error", "Failed to accept order");
-      console.error(error);
+      console.error("Order acceptance error:", error);
+      Alert.alert("Error", "Failed to accept order. Please try again.");
     }
   };
 
-  const handleRejectOrder = (order: Order) => {
-    Alert.alert(
-      "Reject Order",
-      `Are you sure you want to reject Order #${order.id.slice(-6)}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reject",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert("Order Rejected", "Looking for another agent...");
-          },
-        },
-      ]
-    );
-  };
-
-  const renderOrder = ({ item }: { item: Order }) => (
+  const renderPendingOrder = ({ item }: { item: Order }) => (
     <View
       style={[
         styles.orderCard,
@@ -95,9 +146,6 @@ export default function ActiveDeliveries() {
           👤 {item.customerName}
         </Text>
         <Text style={[styles.info, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
-          📞 {item.customerPhone}
-        </Text>
-        <Text style={[styles.info, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
           📍 {item.deliveryAddress.street}, {item.deliveryAddress.city}
         </Text>
         <Text
@@ -110,18 +158,7 @@ export default function ActiveDeliveries() {
         </Text>
       </View>
 
-      <View style={{ marginTop: spacing.sm }}>
-        <Text style={[styles.itemsLabel, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
-          Items ({item.items.length}):
-        </Text>
-        {item.items.map((orderItem, idx) => (
-          <Text key={idx} style={[styles.item, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
-            • {orderItem.quantity}x {orderItem.name}
-          </Text>
-        ))}
-      </View>
-
-      <View style={[styles.buttonRow, { marginTop: spacing.md, gap: spacing.sm }]}>
+      <View style={[styles.buttonRow, { marginTop: spacing.md }]}>
         <TouchableOpacity
           style={[
             styles.acceptBtn,
@@ -139,22 +176,77 @@ export default function ActiveDeliveries() {
             ✓ Accept
           </Text>
         </TouchableOpacity>
+      </View>
+    </View>
+  );
 
+  const renderActiveOrder = ({ item }: { item: Order }) => (
+    <View
+      style={[
+        styles.orderCard,
+        {
+          backgroundColor: theme.surface,
+          padding: spacing.lg,
+          marginHorizontal: spacing.lg,
+          marginBottom: spacing.md,
+          borderRadius: borderRadius.lg,
+          borderLeftWidth: 4,
+          borderLeftColor: theme.primary,
+          ...elevation.md,
+        },
+      ]}
+    >
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={[styles.orderId, { color: theme.text, fontSize: fontSize.lg }]}>
+          Order #{item.id.slice(-6)}
+        </Text>
+        <View
+          style={{
+            backgroundColor: theme.primary,
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: theme.textInverse, fontSize: fontSize.xs, fontWeight: "700" }}>
+            {item.status.replace("_", " ").toUpperCase()}
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ marginTop: spacing.sm }}>
+        <Text style={[styles.info, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+          👤 {item.customerName}
+        </Text>
+        <Text style={[styles.info, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+          📍 {item.deliveryAddress.street}, {item.deliveryAddress.city}
+        </Text>
+        <Text
+          style={[
+            styles.price,
+            { color: theme.text, fontSize: fontSize.md, marginTop: spacing.xs },
+          ]}
+        >
+          💰 ${item.total.toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={[styles.buttonRow, { marginTop: spacing.md }]}>
         <TouchableOpacity
           style={[
-            styles.rejectBtn,
+            styles.acceptBtn,
             {
               flex: 1,
-              backgroundColor: theme.danger,
+              backgroundColor: theme.primary,
               padding: spacing.md,
               borderRadius: borderRadius.md,
               alignItems: "center",
             },
           ]}
-          onPress={() => handleRejectOrder(item)}
+          onPress={() => router.push(`/agent/order-details?orderId=${item.id}` as any)}
         >
           <Text style={[styles.btnText, { color: theme.textInverse, fontSize: fontSize.md }]}>
-            ✗ Reject
+            📍 View Details & Track
           </Text>
         </TouchableOpacity>
       </View>
@@ -177,7 +269,7 @@ export default function ActiveDeliveries() {
           <Ionicons name="arrow-back" size={24} color={theme.textInverse} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.textInverse, fontSize: fontSize.lg }]}>
-          Available Orders
+          Orders & Deliveries
         </Text>
         <View
           style={[
@@ -191,7 +283,7 @@ export default function ActiveDeliveries() {
           ]}
         >
           <Text style={[styles.badgeText, { color: theme.primary, fontSize: fontSize.sm }]}>
-            {pendingOrders.length}
+            {activeOrders.length + pendingOrders.length}
           </Text>
         </View>
       </View>
@@ -200,33 +292,77 @@ export default function ActiveDeliveries() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
         </View>
-      ) : pendingOrders.length === 0 ? (
-        <View style={[styles.emptyContainer, { padding: spacing.xl }]}>
-          <Ionicons name="checkmark-circle-outline" size={64} color={theme.textSecondary} />
-          <Text
-            style={[
-              styles.emptyText,
-              { color: theme.textSecondary, fontSize: fontSize.lg, marginTop: spacing.md },
-            ]}
-          >
-            No pending orders right now
-          </Text>
-          <Text
-            style={[
-              styles.emptySubtext,
-              { color: theme.textTertiary, fontSize: fontSize.sm, marginTop: spacing.xs },
-            ]}
-          >
-            New orders will appear here automatically
-          </Text>
-        </View>
       ) : (
-        <FlatList
-          data={pendingOrders}
-          renderItem={renderOrder}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingVertical: spacing.lg, paddingBottom: 100 }}
-        />
+        <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+          {/* Pending Orders Section */}
+          {pendingOrders.length > 0 && (
+            <View style={{ marginTop: spacing.lg }}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    color: theme.text,
+                    fontSize: fontSize.md,
+                    marginLeft: spacing.lg,
+                    marginBottom: spacing.sm,
+                    fontWeight: "700",
+                  },
+                ]}
+              >
+                🔔 New Orders Available ({pendingOrders.length})
+              </Text>
+              {pendingOrders.map((order) => (
+                <View key={order.id}>{renderPendingOrder({ item: order })}</View>
+              ))}
+            </View>
+          )}
+
+          {/* Active Orders Section */}
+          {activeOrders.length > 0 && (
+            <View style={{ marginTop: spacing.lg }}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    color: theme.text,
+                    fontSize: fontSize.md,
+                    marginLeft: spacing.lg,
+                    marginBottom: spacing.sm,
+                    fontWeight: "700",
+                  },
+                ]}
+              >
+                🚀 My Active Deliveries ({activeOrders.length})
+              </Text>
+              {activeOrders.map((order) => (
+                <View key={order.id}>{renderActiveOrder({ item: order })}</View>
+              ))}
+            </View>
+          )}
+
+          {/* Empty State */}
+          {pendingOrders.length === 0 && activeOrders.length === 0 && (
+            <View style={[styles.emptyContainer, { padding: spacing.xl, marginTop: spacing.xl }]}>
+              <Ionicons name="bicycle-outline" size={64} color={theme.textSecondary} />
+              <Text
+                style={[
+                  styles.emptyText,
+                  { color: theme.textSecondary, fontSize: fontSize.lg, marginTop: spacing.md },
+                ]}
+              >
+                No orders available
+              </Text>
+              <Text
+                style={[
+                  styles.emptySubtext,
+                  { color: theme.textTertiary, fontSize: fontSize.sm, marginTop: spacing.xs },
+                ]}
+              >
+                New orders will appear here automatically
+              </Text>
+            </View>
+          )}
+        </ScrollView>
       )}
 
       {/* Bottom Navigation */}
@@ -240,7 +376,10 @@ export default function ActiveDeliveries() {
           },
         ]}
       >
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/dashboard" as any)}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/dashboard" as any)}
+        >
           <Ionicons name="home-outline" size={24} color={theme.textSecondary} />
           <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
             Home
@@ -254,14 +393,20 @@ export default function ActiveDeliveries() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/earnings" as any)}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/earnings" as any)}
+        >
           <Ionicons name="wallet-outline" size={24} color={theme.textSecondary} />
           <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
             Earnings
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/profile" as any)}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/profile" as any)}
+        >
           <Ionicons name="person-outline" size={24} color={theme.textSecondary} />
           <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
             Profile
@@ -306,6 +451,9 @@ const styles = StyleSheet.create({
   emptySubtext: {
     textAlign: "center",
   },
+  sectionTitle: {
+    fontWeight: "700",
+  },
   orderCard: {
     // Dynamic
   },
@@ -349,9 +497,9 @@ const styles = StyleSheet.create({
   navItem: {
     flex: 1,
     alignItems: "center",
-    gap: 4,
   },
   navText: {
     fontWeight: "600",
+    marginTop: 4,
   },
 });

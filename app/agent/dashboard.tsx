@@ -8,67 +8,130 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { subscribeToAgentOrders, setAgentOnline, updateAgentStatus } from "@/lib/services/firestoreService";
-import { startLocationTracking, type LocationSubscription } from "@/lib/services/locationService";
+import {
+  subscribeToAgentOrders,
+  setAgentOnline,
+  updateAgentStatus,
+  getAgent,
+} from "@/lib/services/firestoreService";
 import type { Order } from "@/types/models";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function Dashboard() {
   const { theme, spacing, borderRadius, fontSize, elevation } = useTheme();
-  const { user, agentData } = useAuth();
+  const { user, agentData, firebaseUser } = useAuth();
 
   const [isOnline, setIsOnline] = useState(false);
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
-  const [locationSubscription, setLocationSubscription] = useState<LocationSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Subscribe to agent's orders
   useEffect(() => {
-    if (!user?.id) return;
+    const agentId = user?.id || agentData?.id || firebaseUser?.uid;
+    if (!agentId) return;
 
-    const unsubscribe = subscribeToAgentOrders(user.id, (orders) => {
+    const unsubscribe = subscribeToAgentOrders(agentId, (orders) => {
       setActiveOrders(orders);
       setIsLoading(false);
     });
 
     return unsubscribe;
-  }, [user?.id]);
+  }, [user?.id, agentData?.id, firebaseUser?.uid]);
+
+  // Handle emergency call
+  const handleEmergencyCall = () => {
+    Alert.alert(
+      "Emergency Call",
+      "Are you sure you want to call 911? This should only be used for real emergencies.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Call 911",
+          style: "destructive",
+          onPress: () => {
+            Linking.openURL("tel:911");
+          },
+        },
+      ]
+    );
+  };
 
   // Handle online/offline toggle
   const handleToggleOnline = async (value: boolean) => {
-    if (!user?.id) return;
+    const agentId = user?.id || agentData?.id || firebaseUser?.uid;
+    const agentName =
+      user?.name ||
+      agentData?.name ||
+      firebaseUser?.displayName ||
+      firebaseUser?.email?.split("@")[0] ||
+      "Agent";
+    const agentEmail = user?.email || agentData?.email || firebaseUser?.email || "";
+
+    if (!agentId) {
+      Alert.alert("Error", "Please login to continue");
+      return;
+    }
 
     try {
       setIsOnline(value);
-      await setAgentOnline(user.id, value);
+
+      // Ensure agent documents exist first
+      const existingAgent = await getAgent(agentId);
+      if (!existingAgent) {
+        console.log("Creating agent documents for first-time user...");
+
+        // Create user document
+        await setDoc(doc(db, "users", agentId), {
+          id: agentId,
+          name: agentName,
+          email: agentEmail,
+          role: "agent",
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+
+        // Create agent document
+        await setDoc(doc(db, "agents", agentId), {
+          id: agentId,
+          name: agentName,
+          email: agentEmail,
+          phone: "",
+          vehicleType: "bike",
+          vehicleNumber: "",
+          vehicleColor: "",
+          status: value ? "available" : "offline",
+          isOnline: value,
+          isVerified: false,
+          rating: 0,
+          totalDeliveries: 0,
+          totalEarnings: 0,
+          currentLocation: { latitude: 0, longitude: 0 },
+          geohash: "",
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+      } else {
+        // Update existing agent
+        await setAgentOnline(agentId, value);
+        await updateAgentStatus(agentId, value ? "available" : "offline");
+      }
 
       if (value) {
-        // Start location tracking when going online
-        const subscription = await startLocationTracking(user.id);
-        if (subscription) {
-          setLocationSubscription(subscription);
-          Alert.alert("You're Online!", "You'll now receive delivery requests");
-        } else {
-          Alert.alert("Location Error", "Please enable location permissions");
-          setIsOnline(false);
-        }
+        Alert.alert("You're Online!", "You'll now receive delivery requests");
       } else {
-        // Stop location tracking when going offline
-        if (locationSubscription) {
-          locationSubscription.remove();
-          setLocationSubscription(null);
-        }
-        await updateAgentStatus(user.id, "offline");
         Alert.alert("You're Offline", "You won't receive new delivery requests");
       }
     } catch (error) {
       console.error("Error toggling online status:", error);
-      Alert.alert("Error", "Failed to update status");
+      Alert.alert("Error", "Failed to update status. Please try again.");
       setIsOnline(!value);
     }
   };
@@ -134,7 +197,9 @@ export default function Dashboard() {
               <Text style={[styles.statusLabel, { color: theme.text, fontSize: fontSize.md }]}>
                 {isOnline ? "🟢 Online" : "⚫ Offline"}
               </Text>
-              <Text style={[styles.statusSub, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+              <Text
+                style={[styles.statusSub, { color: theme.textSecondary, fontSize: fontSize.sm }]}
+              >
                 {isOnline ? "Accepting deliveries" : "Tap to go online"}
               </Text>
             </View>
@@ -148,7 +213,9 @@ export default function Dashboard() {
         </View>
 
         {/* Stats */}
-        <View style={[styles.statsContainer, { paddingHorizontal: spacing.lg, marginTop: spacing.lg }]}>
+        <View
+          style={[styles.statsContainer, { paddingHorizontal: spacing.lg, marginTop: spacing.lg }]}
+        >
           <View
             style={[
               styles.statCard,
@@ -207,6 +274,40 @@ export default function Dashboard() {
           </View>
         </View>
 
+        {/* Emergency Call Button */}
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.lg }}>
+          <TouchableOpacity
+            style={[
+              styles.emergencyButton,
+              {
+                backgroundColor: theme.danger,
+                padding: spacing.lg,
+                borderRadius: borderRadius.lg,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                ...elevation.md,
+              },
+            ]}
+            onPress={handleEmergencyCall}
+          >
+            <Ionicons name="call" size={24} color="#fff" />
+            <Text
+              style={[
+                styles.emergencyText,
+                {
+                  color: "#fff",
+                  fontSize: fontSize.lg,
+                  fontWeight: "700",
+                  marginLeft: spacing.md,
+                },
+              ]}
+            >
+              Emergency Call 911
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Active Orders */}
         <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
           <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize.lg }]}>
@@ -214,7 +315,11 @@ export default function Dashboard() {
           </Text>
 
           {isLoading ? (
-            <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: spacing.lg }} />
+            <ActivityIndicator
+              size="large"
+              color={theme.primary}
+              style={{ marginTop: spacing.lg }}
+            />
           ) : activeOrders.length === 0 ? (
             <View
               style={[
@@ -229,13 +334,18 @@ export default function Dashboard() {
               ]}
             >
               <Ionicons name="bicycle-outline" size={48} color={theme.textSecondary} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: fontSize.md, marginTop: spacing.md }]}>
+              <Text
+                style={[
+                  styles.emptyText,
+                  { color: theme.textSecondary, fontSize: fontSize.md, marginTop: spacing.md },
+                ]}
+              >
                 {isOnline ? "No active deliveries" : "Go online to receive orders"}
               </Text>
             </View>
           ) : (
             activeOrders.map((order) => (
-              <TouchableOpacity
+              <View
                 key={order.id}
                 style={[
                   styles.orderCard,
@@ -249,7 +359,6 @@ export default function Dashboard() {
                     ...elevation.md,
                   },
                 ]}
-                onPress={() => router.push(`/agent/order-details/${order.id}` as any)}
               >
                 <View style={styles.orderHeader}>
                   <Text style={[styles.orderId, { color: theme.text, fontSize: fontSize.md }]}>
@@ -259,27 +368,47 @@ export default function Dashboard() {
                     style={[
                       styles.statusBadge,
                       {
-                        backgroundColor: theme.primaryDark,
+                        backgroundColor: theme.primary,
                         paddingHorizontal: spacing.sm,
                         paddingVertical: 4,
                         borderRadius: borderRadius.sm,
                       },
                     ]}
                   >
-                    <Text style={[styles.statusBadgeText, { color: theme.textInverse, fontSize: fontSize.xs }]}>
+                    <Text
+                      style={[
+                        styles.statusBadgeText,
+                        { color: theme.textInverse, fontSize: fontSize.xs },
+                      ]}
+                    >
                       {order.status.replace("_", " ").toUpperCase()}
                     </Text>
                   </View>
                 </View>
 
                 <View style={{ marginTop: spacing.sm }}>
-                  <Text style={[styles.orderDetail, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+                  <Text
+                    style={[
+                      styles.orderDetail,
+                      { color: theme.textSecondary, fontSize: fontSize.sm },
+                    ]}
+                  >
                     👤 {order.customerName}
                   </Text>
-                  <Text style={[styles.orderDetail, { color: theme.textSecondary, fontSize: fontSize.sm }]}>
+                  <Text
+                    style={[
+                      styles.orderDetail,
+                      { color: theme.textSecondary, fontSize: fontSize.sm },
+                    ]}
+                  >
                     📍 {order.deliveryAddress.street}, {order.deliveryAddress.city}
                   </Text>
-                  <Text style={[styles.orderDetail, { color: theme.text, fontSize: fontSize.md, marginTop: spacing.xs }]}>
+                  <Text
+                    style={[
+                      styles.orderDetail,
+                      { color: theme.text, fontSize: fontSize.md, marginTop: spacing.xs },
+                    ]}
+                  >
                     💰 ${order.total.toFixed(2)}
                   </Text>
                 </View>
@@ -294,13 +423,18 @@ export default function Dashboard() {
                       marginTop: spacing.md,
                     },
                   ]}
-                  onPress={() => router.push("/agent/update-status" as any)}
+                  onPress={() => router.push(`/agent/order-details?orderId=${order.id}` as any)}
                 >
-                  <Text style={[styles.viewBtnText, { color: theme.textInverse, fontSize: fontSize.md }]}>
-                    Update Status
+                  <Text
+                    style={[
+                      styles.viewBtnText,
+                      { color: theme.textInverse, fontSize: fontSize.md },
+                    ]}
+                  >
+                    View Details
                   </Text>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </View>
             ))
           )}
 
@@ -344,7 +478,12 @@ export default function Dashboard() {
               onPress={() => router.push("/agent/earnings" as any)}
             >
               <Ionicons name="wallet-outline" size={32} color={theme.primary} />
-              <Text style={[styles.actionText, { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm }]}>
+              <Text
+                style={[
+                  styles.actionText,
+                  { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm },
+                ]}
+              >
                 Earnings
               </Text>
             </TouchableOpacity>
@@ -362,7 +501,12 @@ export default function Dashboard() {
               onPress={() => router.push("/agent/live-location" as any)}
             >
               <Ionicons name="navigate-outline" size={32} color={theme.success} />
-              <Text style={[styles.actionText, { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm }]}>
+              <Text
+                style={[
+                  styles.actionText,
+                  { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm },
+                ]}
+              >
                 Location
               </Text>
             </TouchableOpacity>
@@ -380,7 +524,12 @@ export default function Dashboard() {
               onPress={() => router.push("/agent/profile" as any)}
             >
               <Ionicons name="person-outline" size={32} color={theme.info} />
-              <Text style={[styles.actionText, { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm }]}>
+              <Text
+                style={[
+                  styles.actionText,
+                  { color: theme.text, fontSize: fontSize.sm, marginTop: spacing.sm },
+                ]}
+              >
                 Profile
               </Text>
             </TouchableOpacity>
@@ -399,24 +548,44 @@ export default function Dashboard() {
           },
         ]}
       >
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/dashboard" as any)}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/dashboard" as any)}
+        >
           <Ionicons name="home" size={24} color={theme.primary} />
-          <Text style={[styles.navText, { color: theme.primary, fontSize: fontSize.xs }]}>Home</Text>
+          <Text style={[styles.navText, { color: theme.primary, fontSize: fontSize.xs }]}>
+            Home
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/activeDeliveries" as any)}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/activeDeliveries" as any)}
+        >
           <MaterialIcons name="delivery-dining" size={28} color={theme.textSecondary} />
-          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>Deliveries</Text>
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
+            Deliveries
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/earnings" as any)}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/earnings" as any)}
+        >
           <Ionicons name="wallet-outline" size={24} color={theme.textSecondary} />
-          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>Earnings</Text>
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
+            Earnings
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/agent/profile" as any)}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/agent/profile" as any)}
+        >
           <Ionicons name="person-outline" size={24} color={theme.textSecondary} />
-          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>Profile</Text>
+          <Text style={[styles.navText, { color: theme.textSecondary, fontSize: fontSize.xs }]}>
+            Profile
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -538,6 +707,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
   },
+  emergencyButton: {
+    // Dynamic styles
+  },
+  emergencyText: {
+    // Dynamic styles
+  },
   bottomNav: {
     flexDirection: "row",
     borderTopWidth: 1,
@@ -547,9 +722,9 @@ const styles = StyleSheet.create({
   navItem: {
     flex: 1,
     alignItems: "center",
-    gap: 4,
   },
   navText: {
     fontWeight: "600",
+    marginTop: 4,
   },
 });
