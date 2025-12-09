@@ -1,4 +1,4 @@
-// app/(drawer)/(tabs)/checkout.tsx
+// app/checkout.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -11,14 +11,16 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
+// ✅ Firebase + OrderService imports (moved here from cart.tsx)
+import OrderService from '../services/OrderService';
+import { auth } from '../lib/firebaseConfig';
+
 export default function CheckoutScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const totalAmount = parseFloat(params.total as string) || 0;
 
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [name, setName] = useState('');
@@ -63,7 +65,7 @@ export default function CheckoutScreen() {
       if (cardsData) {
         const cards = JSON.parse(cardsData);
         setSavedCards(cards);
-        
+
         // Auto-select default card
         const defaultCard = cards.find((c: any) => c.isDefault);
         if (defaultCard) {
@@ -103,6 +105,7 @@ export default function CheckoutScreen() {
     return true;
   };
 
+  // ✅ REAL order placement with Firebase
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
@@ -111,51 +114,111 @@ export default function CheckoutScreen() {
       return;
     }
 
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to place an order',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign In',
+            onPress: () => {
+              try {
+                router.push('/login' as any);
+              } catch (e) {
+                console.error('Navigation error:', e);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // calculate totals from cart
+    const subtotal = cartItems.reduce(
+      (total, item) => total + item.price * (item.quantity || 1),
+      0
+    );
+    const tax = subtotal * 0.05; // 5% GST
+    const total = subtotal + tax;
+
     setLoading(true);
 
-    // Simulate payment processing
-    setTimeout(async () => {
-      try {
-        const order = {
-          id: Date.now().toString(),
-          items: cartItems,
-          total: totalAmount,
-          name,
-          phone,
-          address,
-          paymentMethod,
-          cardUsed: selectedCard ? `${selectedCard.network || 'Card'} ••${selectedCard.last4 || '****'}` : 'New Card',
-          date: new Date().toISOString(),
-          status: 'placed',
-        };
+    try {
+      const orderData = {
+        userId: user.uid,
+        customerName:
+          name.trim() ||
+          user.displayName ||
+          user.email?.split('@')[0] ||
+          'Customer',
+        items: cartItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          size: item.size,
+          crust: item.crust,
+          type: item.type,
+          toppings: item.toppings,
+          details: item.details,
+        })),
+        total: parseFloat(total.toFixed(2)),
+        phone: phone.trim() || user.phoneNumber || 'N/A',
+        address: address.trim(),
+        paymentMethod: paymentMethod === 'card' ? 'Card' : 'Cash',
+        notes: '', // you can wire a "notes" input later if you want
+      };
 
-        const ordersData = await AsyncStorage.getItem('@orders');
-        const orders = ordersData ? JSON.parse(ordersData) : [];
-        orders.unshift(order);
-        await AsyncStorage.setItem('@orders', JSON.stringify(orders));
+      console.log('Creating order from checkout:', orderData);
 
-        await AsyncStorage.removeItem('@cart');
+      const result = await OrderService.createOrder(orderData);
 
-        setLoading(false);
+      // clear cart after successful order
+      await AsyncStorage.setItem('@cart', JSON.stringify([]));
+      setCartItems([]);
 
-        Alert.alert(
-          '🎉 Order Placed Successfully!',
-          `Order #${order.id.slice(-6)}\n\nYour delicious pizza will arrive in 30-45 minutes!\n\nTotal: $${totalAmount.toFixed(2)}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                router.replace('/(drawer)/(tabs)/home');
-              },
+      setLoading(false);
+
+      Alert.alert(
+        'Order Placed Successfully! 🎉',
+        `Order #${result.orderId.slice(-6)} has been placed.\n\nTotal: $${total.toFixed(
+          2
+        )}\n\nYour order is being prepared!`,
+        [
+          {
+            text: 'View Orders',
+            onPress: () => {
+              try {
+                // adjust this route when you have an Orders screen
+                router.replace('/(drawer)/(tabs)/home' as any);
+              } catch (e) {
+                console.error('Navigation error:', e);
+              }
             },
-          ]
-        );
-      } catch (error) {
-        setLoading(false);
-        console.error('Error placing order:', error);
-        Alert.alert('Error', 'Failed to place order. Please try again.');
-      }
-    }, 2000);
+          },
+          {
+            text: 'OK',
+            onPress: () => {
+              try {
+                router.replace('/(drawer)/(tabs)/home' as any);
+              } catch (e) {
+                console.error('Navigation error:', e);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      setLoading(false);
+      console.error('Error placing order:', error);
+      Alert.alert(
+        'Order Failed',
+        error.message || 'Failed to place order. Please try again.'
+      );
+    }
   };
 
   const handleCardSelect = (card: any) => {
@@ -172,18 +235,24 @@ export default function CheckoutScreen() {
 
   const getCardIcon = (network: string) => {
     if (!network) return 'card-outline';
-    
+
     switch (network.toLowerCase()) {
       case 'visa':
-        return 'card';
       case 'mastercard':
-        return 'card';
       case 'amex':
         return 'card';
       default:
         return 'card-outline';
     }
   };
+
+  // ✅ recompute totals from cart for the UI
+  const subtotal = cartItems.reduce(
+    (total, item) => total + item.price * (item.quantity || 1),
+    0
+  );
+  const tax = subtotal * 0.05;
+  const totalAmount = subtotal + tax;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -219,9 +288,22 @@ export default function CheckoutScreen() {
                     <Text style={styles.orderItemDetail}>Qty: {item.quantity}</Text>
                   )}
                 </View>
-                <Text style={styles.orderItemPrice}>${item.price.toFixed(2)}</Text>
+                <Text style={styles.orderItemPrice}>
+                  ${(item.price * (item.quantity || 1)).toFixed(2)}
+                </Text>
               </View>
             ))}
+            <View style={styles.divider} />
+
+            {/* show subtotal + tax + total */}
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Subtotal</Text>
+              <Text style={styles.totalAmount}>${subtotal.toFixed(2)}</Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>GST (5%)</Text>
+              <Text style={styles.totalAmount}>${tax.toFixed(2)}</Text>
+            </View>
             <View style={styles.divider} />
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
@@ -285,7 +367,8 @@ export default function CheckoutScreen() {
             onPress={() => {
               setPaymentMethod('card');
               if (savedCards.length > 0 && !showNewCardInput) {
-                const defaultCard = savedCards.find((c: any) => c.isDefault) || savedCards[0];
+                const defaultCard =
+                  savedCards.find((c: any) => c.isDefault) || savedCards[0];
                 setSelectedCard(defaultCard);
               }
             }}
@@ -302,26 +385,32 @@ export default function CheckoutScreen() {
           {paymentMethod === 'card' && savedCards.length > 0 && (
             <View style={styles.savedCardsContainer}>
               <Text style={styles.savedCardsTitle}>Your Cards</Text>
-              
+
               {savedCards.map((card, index) => (
                 <TouchableOpacity
                   key={index}
                   style={[
                     styles.savedCard,
-                    selectedCard?.id === card.id && !showNewCardInput && styles.savedCardSelected,
+                    selectedCard?.id === card.id &&
+                      !showNewCardInput &&
+                      styles.savedCardSelected,
                   ]}
                   onPress={() => handleCardSelect(card)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.savedCardLeft}>
-                    <Ionicons 
-                      name={getCardIcon(card.network)} 
-                      size={28} 
-                      color="#FFC107" 
+                    <Ionicons
+                      name={getCardIcon(card.network)}
+                      size={28}
+                      color="#FFC107"
                     />
                     <View style={styles.savedCardInfo}>
-                      <Text style={styles.savedCardNetwork}>{card.network || 'Card'}</Text>
-                      <Text style={styles.savedCardNumber}>•••• {card.last4 || '****'}</Text>
+                      <Text style={styles.savedCardNetwork}>
+                        {card.network || 'Card'}
+                      </Text>
+                      <Text style={styles.savedCardNumber}>
+                        •••• {card.last4 || '****'}
+                      </Text>
                       {card.isDefault && (
                         <View style={styles.defaultBadge}>
                           <Text style={styles.defaultBadgeText}>Default</Text>
@@ -331,7 +420,11 @@ export default function CheckoutScreen() {
                   </View>
                   <View style={styles.savedCardCheck}>
                     {selectedCard?.id === card.id && !showNewCardInput && (
-                      <Ionicons name="checkmark-circle" size={24} color="#FFC107" />
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={24}
+                        color="#FFC107"
+                      />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -346,30 +439,36 @@ export default function CheckoutScreen() {
                 onPress={handleAddNewCard}
                 activeOpacity={0.7}
               >
-                <Ionicons name="add-circle-outline" size={24} color="#FFC107" />
+                <Ionicons
+                  name="add-circle-outline"
+                  size={24}
+                  color="#FFC107"
+                />
                 <Text style={styles.addNewCardText}>Add New Card</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {/* New Card Input */}
-          {paymentMethod === 'card' && (savedCards.length === 0 || showNewCardInput) && (
-            <View style={styles.cardInputContainer}>
-              <Text style={styles.inputLabel}>Card Number *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="1234 5678 9012 3456"
-                value={cardNumber}
-                onChangeText={setCardNumber}
-                keyboardType="number-pad"
-                maxLength={16}
-                placeholderTextColor="#999"
-              />
-              <Text style={styles.cardHint}>
-                💡 Save this card to your wallet after checkout for faster payments
-              </Text>
-            </View>
-          )}
+          {paymentMethod === 'card' &&
+            (savedCards.length === 0 || showNewCardInput) && (
+              <View style={styles.cardInputContainer}>
+                <Text style={styles.inputLabel}>Card Number *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1234 5678 9012 3456"
+                  value={cardNumber}
+                  onChangeText={setCardNumber}
+                  keyboardType="number-pad"
+                  maxLength={16}
+                  placeholderTextColor="#999"
+                />
+                <Text style={styles.cardHint}>
+                  💡 Save this card to your wallet after checkout for faster
+                  payments
+                </Text>
+              </View>
+            )}
 
           {/* Cash Payment Option */}
           <TouchableOpacity
@@ -402,12 +501,17 @@ export default function CheckoutScreen() {
           {loading ? (
             <ActivityIndicator color="#1A1A1A" />
           ) : (
-            <Text style={styles.placeOrderText}>
-              Place Order — ${totalAmount.toFixed(2)}
-            </Text>
-          )}
-          {!loading && (
-            <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
+            <>
+              <Text style={styles.placeOrderText}>
+                Place Order — ${totalAmount.toFixed(2)}
+              </Text>
+              <Ionicons
+                name="arrow-forward"
+                size={20}
+                color="#1A1A1A"
+                style={{ marginLeft: 8 }}
+              />
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -416,7 +520,7 @@ export default function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Base & header
+  // (unchanged styles)
   container: {
     flex: 1,
     backgroundColor: '#F8F8F8',
@@ -447,7 +551,6 @@ const styles = StyleSheet.create({
   },
   scrollView: { flex: 1, paddingHorizontal: 16 },
 
-  // Sections & cards
   section: {
     backgroundColor: '#fff',
     padding: 16,
@@ -468,7 +571,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Order summary
   summaryBox: {
     backgroundColor: '#FFFBF5',
     borderRadius: 12,
@@ -501,11 +603,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFE082',
     marginVertical: 8,
   },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
-  totalLabel: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  totalAmount: { fontSize: 18, fontWeight: '700', color: '#FFC107' },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+  },
+  totalLabel: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
+  totalAmount: { fontSize: 16, fontWeight: '700', color: '#FFC107' },
 
-  // Inputs
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -523,7 +628,6 @@ const styles = StyleSheet.create({
   },
   textArea: { height: 100, textAlignVertical: 'top' },
 
-  // Payment options
   paymentOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -557,7 +661,6 @@ const styles = StyleSheet.create({
   paymentIcon: { marginRight: 10 },
   paymentText: { fontSize: 16, fontWeight: '600', color: '#1A1A1A' },
 
-  // Saved Cards
   savedCardsContainer: {
     marginTop: 4,
     marginBottom: 12,
@@ -643,7 +746,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Footer & CTA
   footer: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,

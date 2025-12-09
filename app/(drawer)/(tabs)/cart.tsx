@@ -14,9 +14,9 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import OrderService from '../../../services/OrderService';
+// ❌ OrderService removed – cart screen no longer creates orders
+// import OrderService from '../../../services/OrderService';
 import { auth } from '../../../lib/firebaseConfig';
-
 
 interface CartItem {
   id: string;
@@ -34,7 +34,7 @@ export default function CartScreen() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false); // stays but no longer used
 
   // Load cart when screen is focused
   useFocusEffect(
@@ -116,7 +116,8 @@ export default function CartScreen() {
     return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  const handleCheckout = async () => {
+  // ✅ NEW VERSION – only navigates to checkout
+  const handleCheckout = () => {
     if (cartItems.length === 0) {
       Alert.alert('Cart Empty', 'Add some pizzas first!');
       return;
@@ -146,82 +147,11 @@ export default function CartScreen() {
       return;
     }
 
-    setIsPlacingOrder(true);
-
+    // ✅ User logged in & cart has items → go to Checkout screen
     try {
-      const subtotal = getTotal();
-      const tax = subtotal * 0.05;
-      const total = subtotal + tax;
-
-      // Prepare order data for Firebase
-      const orderData = {
-        userId: user.uid,
-        customerName: user.displayName || user.email?.split('@')[0] || 'Customer',
-        items: cartItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          size: item.size,
-          crust: item.crust,
-          type: item.type,
-          toppings: item.toppings,
-          details: item.details,
-        })),
-        total: parseFloat(total.toFixed(2)),
-        phone: user.phoneNumber || '28738374874',
-        address: '35 taralea cresent', // You can add address collection here
-        paymentMethod: 'Cash', // You can add payment method selection
-        notes: 'ujhuhd',
-      };
-
-      console.log('Creating order:', orderData);
-
-      // Create order in Firebase
-      const result = await OrderService.createOrder(orderData);
-
-      if (result.success) {
-        // Clear cart
-        await clearCart();
-
-        // Show success message
-        Alert.alert(
-          'Order Placed Successfully! 🎉',
-          `Order #${result.orderId.slice(-6)} has been placed.\n\nTotal: $${total.toFixed(2)}\n\nYour order is being prepared!`,
-          [
-            {
-              text: 'View Orders',
-              onPress: () => {
-                try {
-                  // Navigate to home instead of order tracking
-                  router.push('/(drawer)/(tabs)/home' as any);
-                } catch (e) {
-                  console.error('Navigation error:', e);
-                }
-              },
-            },
-            {
-              text: 'OK',
-              onPress: () => {
-                try {
-                  router.push('/(drawer)/(tabs)/home' as any);
-                } catch (e) {
-                  console.error('Navigation error:', e);
-                }
-              },
-            },
-          ]
-        );
-      }
-    } catch (error: any) {
-      console.error('Error placing order:', error);
-      Alert.alert(
-        'Order Failed',
-        error.message || 'Failed to place order. Please try again.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsPlacingOrder(false);
+      router.push('/checkout' as any); // change path if your checkout route is different
+    } catch (e) {
+      console.error('Navigation error:', e);
     }
   };
 
@@ -382,17 +312,11 @@ export default function CartScreen() {
           activeOpacity={0.8}
           disabled={isPlacingOrder}
         >
-          {isPlacingOrder ? (
-            <>
-              <ActivityIndicator color="#1A1A1A" style={{ marginRight: 8 }} />
-              <Text style={styles.checkoutText}>Placing Order...</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.checkoutText}>Place Order</Text>
-              <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
-            </>
-          )}
+          {/* isPlacingOrder is always false now, so this shows the normal state */}
+          <>
+            <Text style={styles.checkoutText}>Place Order</Text>
+            <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
+          </>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -400,6 +324,7 @@ export default function CartScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ... your existing styles unchanged ...
   container: {
     flex: 1,
     backgroundColor: "#F8F8F8",
