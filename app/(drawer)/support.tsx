@@ -101,24 +101,18 @@ export default function Support() {
       {/* Policies */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Policies</Text>
-        <Link href="/policy/refund" asChild>
-          <Pressable style={styles.itemRow}>
-            <Text style={styles.itemText}>Refunds & cancellations</Text>
-            <Ionicons name="chevron-forward" size={20} />
-          </Pressable>
-        </Link>
-        <Link href="/policy/privacy" asChild>
-          <Pressable style={styles.itemRow}>
-            <Text style={styles.itemText}>Privacy policy</Text>
-            <Ionicons name="chevron-forward" size={20} />
-          </Pressable>
-        </Link>
-        <Link href="/policy/terms" asChild>
-          <Pressable style={styles.itemRow}>
-            <Text style={styles.itemText}>Terms of service</Text>
-            <Ionicons name="chevron-forward" size={20} />
-          </Pressable>
-        </Link>
+        <Pressable style={styles.itemRow} onPress={() => router.push("/policy/refund" as any)}>
+          <Text style={styles.itemText}>Refunds & cancellations</Text>
+          <Ionicons name="chevron-forward" size={20} />
+        </Pressable>
+        <Pressable style={styles.itemRow} onPress={() => router.push("/policy/privacy" as any)}>
+          <Text style={styles.itemText}>Privacy policy</Text>
+          <Ionicons name="chevron-forward" size={20} />
+        </Pressable>
+        <Pressable style={styles.itemRow} onPress={() => router.push("/policy/terms" as any)}>
+          <Text style={styles.itemText}>Terms of service</Text>
+          <Ionicons name="chevron-forward" size={20} />
+        </Pressable>
       </View>
 
       {/* Footer CTA */}

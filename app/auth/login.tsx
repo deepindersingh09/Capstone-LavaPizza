@@ -23,7 +23,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '../../lib/firebaseConfig';
+import { auth } from '../../lib/firebase';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Login() {

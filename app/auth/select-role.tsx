@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-} from "react-native";
+import { Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
@@ -18,17 +11,15 @@ export default function SelectRole() {
       router.push("/auth/signup-customer");
     } else if (role === "delivery") {
       router.push("/auth/signup-delivery");
-    } else if (role === "admin") {
-      router.push("/auth/signup-admin");
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* 🔙 Back Button */}
-<TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={26} color="#000" />
-        </TouchableOpacity>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={26} color="#000" />
+      </TouchableOpacity>
       <Image
         source={require("../../assets/images/logo.png")}
         style={styles.logo}
@@ -37,25 +28,15 @@ export default function SelectRole() {
 
       <Text style={styles.title}>Select Your Role</Text>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => handleSelectRole("customer")}
-      >
+      <TouchableOpacity style={styles.button} onPress={() => handleSelectRole("customer")}>
         <Text style={styles.buttonText}>Customer</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, styles.lastButton]}
         onPress={() => handleSelectRole("delivery")}
       >
         <Text style={styles.buttonText}>Delivery Agent</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.button, styles.lastButton]}
-        onPress={() => handleSelectRole("admin")}
-      >
-        <Text style={styles.buttonText}>Restaurant Admin</Text>
       </TouchableOpacity>
     </ScrollView>
   );

@@ -1,7 +1,7 @@
 // OrderTrackingScreen.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import OrderService from '../../../services/OrderService'; // ✅ Default import
+import OrderService from '../services/OrderService'; // ✅ Default import
 
 export default function OrderTrackingScreen({ route }) {
   const { orderId } = route.params;

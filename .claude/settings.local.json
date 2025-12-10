@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\")",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfix: resolve TypeScript errors and add missing policy pages\n\n- Fixed SafeAreaView import errors (use react-native-safe-area-context)\n- Added React import to Themed.tsx to fix UMD global error\n- Created missing policy pages (refund, privacy, terms)\n- Fixed support.tsx router navigation for policy pages\n- All TypeScript strict mode errors resolved\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(npm install:*)",
+      "Bash(npx husky init)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nchore: configure ESLint, Prettier, and git hooks\n\n- Added ESLint with TypeScript support and Expo config\n- Configured Prettier with project code style standards  \n- Set up Husky pre-commit hooks with lint-staged\n- Added npm scripts for linting, formatting, and validation\n- Pre-commit hook will auto-fix and format staged files\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)",
+      "Bash(npx eslint --version)",
+      "Bash(git reset:*)",
+      "Bash(npx expo start:*)",
+      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\\agent\")",
+      "Bash(taskkill:*)",
+      "Bash(echo:*)",
+      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\" /b)",
+      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\\agent\" /b)",
+      "Bash(git checkout:*)",
+      "Bash(copy /b appcheckout.tsx +,,)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

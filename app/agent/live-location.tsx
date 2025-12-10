@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Alert, SafeAreaView, StatusBar } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  StatusBar,
+} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,29 +20,41 @@ export default function LiveLocation() {
     let locationSubscription: Location.LocationSubscription | null = null;
 
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission Denied", "Location access is required to show live tracking.");
-        setLoading(false);
-        return;
-      }
-
-      // Get initial location
-      const currentLoc = await Location.getCurrentPositionAsync({});
-      setLocation(currentLoc.coords);
-      setLoading(false);
-
-      // Start watching position updates
-      locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 3000, // every 3 seconds
-          distanceInterval: 5, // or every 5 meters
-        },
-        (loc) => {
-          setLocation(loc.coords);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(
+            "Location Permission Required",
+            "Please enable location permissions in your device settings to use this feature.",
+            [{ text: "OK" }]
+          );
+          setLoading(false);
+          return;
         }
-      );
+
+        // Get initial location
+        const currentLoc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setLocation(currentLoc.coords);
+        setLoading(false);
+
+        // Start watching position updates
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 3000, // every 3 seconds
+            distanceInterval: 5, // or every 5 meters
+          },
+          (loc) => {
+            setLocation(loc.coords);
+          }
+        );
+      } catch (error) {
+        console.error("Location error:", error);
+        Alert.alert("Error", "Failed to get location. Please try again.");
+        setLoading(false);
+      }
     })();
 
     return () => {

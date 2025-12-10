@@ -36,3 +36,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 .env
+FINAL_ACTION_PLAN.md
+.gitignore
+FINAL_ACTION_PLAN.md
+IMPLEMENTATION_GUIDE.md
+QUICK_START_GUIDE.md

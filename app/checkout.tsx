@@ -14,13 +14,13 @@ import {
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-
-// ✅ Firebase + OrderService imports (moved here from cart.tsx)
-import OrderService from '../services/OrderService';
-import { auth } from '../lib/firebaseConfig';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function CheckoutScreen() {
   const router = useRouter();
+  const { user, firebaseUser } = useAuth();
 
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [name, setName] = useState('');
@@ -44,7 +44,6 @@ export default function CheckoutScreen() {
       const cartData = await AsyncStorage.getItem('@cart');
       const cart = cartData ? JSON.parse(cartData) : [];
       setCartItems(cart);
-      console.log('Loaded cart items:', cart.length);
     } catch (error) {
       console.error('Error loading cart:', error);
     }
@@ -66,7 +65,6 @@ export default function CheckoutScreen() {
         const cards = JSON.parse(cardsData);
         setSavedCards(cards);
 
-        // Auto-select default card
         const defaultCard = cards.find((c: any) => c.isDefault);
         if (defaultCard) {
           setSelectedCard(defaultCard);
@@ -92,6 +90,7 @@ export default function CheckoutScreen() {
       Alert.alert('Error', 'Please enter your delivery address');
       return false;
     }
+
     if (paymentMethod === 'card' && showNewCardInput) {
       if (!cardNumber.trim() || cardNumber.length < 16) {
         Alert.alert('Error', 'Please enter a valid 16-digit card number');
@@ -105,7 +104,6 @@ export default function CheckoutScreen() {
     return true;
   };
 
-  // ✅ REAL order placement with Firebase
   const handlePlaceOrder = async () => {
     if (!validateForm()) return;
 
@@ -114,110 +112,104 @@ export default function CheckoutScreen() {
       return;
     }
 
-    const user = auth.currentUser;
-    if (!user) {
-      Alert.alert(
-        'Sign In Required',
-        'Please sign in to place an order',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Sign In',
-            onPress: () => {
-              try {
-                router.push('/login' as any);
-              } catch (e) {
-                console.error('Navigation error:', e);
-              }
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    // calculate totals from cart
-    const subtotal = cartItems.reduce(
-      (total, item) => total + item.price * (item.quantity || 1),
-      0
-    );
-    const tax = subtotal * 0.05; // 5% GST
-    const total = subtotal + tax;
+    const subtotal = cartItems.reduce((total, item) => total + item.price * (item.quantity || 1), 0);
+    const tax = subtotal * 0.05;
 
     setLoading(true);
 
     try {
-      const orderData = {
-        userId: user.uid,
-        customerName:
-          name.trim() ||
-          user.displayName ||
-          user.email?.split('@')[0] ||
-          'Customer',
-        items: cartItems.map((item) => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          size: item.size,
-          crust: item.crust,
-          type: item.type,
-          toppings: item.toppings,
-          details: item.details,
-        })),
-        total: parseFloat(total.toFixed(2)),
-        phone: phone.trim() || user.phoneNumber || 'N/A',
-        address: address.trim(),
-        paymentMethod: paymentMethod === 'card' ? 'Card' : 'Cash',
-        notes: '', // you can wire a "notes" input later if you want
+      const authUser = firebaseUser;
+      const customerId = authUser?.uid || user?.id || 'guest-' + Date.now();
+
+      // Parse address
+      const addressParts = address.split(',').map((part) => part.trim());
+      const street = addressParts[0] || address;
+      const city = addressParts[1] || 'Calgary';
+      const province = addressParts[2] || 'AB';
+      const postalCode = addressParts[3] || 'T2P 1J9';
+
+      // Convert cart items to order items format
+      const orderItems = cartItems.map((item, index) => ({
+        id: item.id || `item-${index}`,
+        name: item.name,
+        quantity: item.quantity || 1,
+        price: item.price,
+        customizations: item.size ? [`Size: ${item.size}`] : [],
+      }));
+
+      // Calculate fees
+      const deliveryFee = 5.0;
+      const total = subtotal + deliveryFee + tax;
+
+      // Create Firestore order document
+      const firestoreOrder = {
+        customerId,
+        customerName: name,
+        customerPhone: phone,
+        items: orderItems,
+        subtotal,
+        deliveryFee,
+        tip: 0,
+        tax,
+        total,
+        status: 'pending',
+        deliveryAddress: {
+          street,
+          city,
+          province,
+          postalCode,
+          country: 'Canada',
+          location: {
+            latitude: 51.0447,
+            longitude: -114.0719,
+          },
+        },
+        restaurantAddress: {
+          street: '123 Pizza Street',
+          city: 'Calgary',
+          province: 'AB',
+          postalCode: 'T2P 0A0',
+          country: 'Canada',
+          location: {
+            latitude: 51.0486,
+            longitude: -114.0708,
+          },
+        },
+        assignedAgentId: null,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        statusHistory: [
+          {
+            status: 'pending',
+            timestamp: Timestamp.now(),
+            note: 'Order placed by customer',
+          },
+        ],
       };
 
-      console.log('Creating order from checkout:', orderData);
+      // Save to Firestore
+      const docRef = await addDoc(collection(db, 'orders'), firestoreOrder);
 
-      const result = await OrderService.createOrder(orderData);
-
-      // clear cart after successful order
+      // Clear cart
       await AsyncStorage.setItem('@cart', JSON.stringify([]));
       setCartItems([]);
 
       setLoading(false);
 
       Alert.alert(
-        'Order Placed Successfully! 🎉',
-        `Order #${result.orderId.slice(-6)} has been placed.\n\nTotal: $${total.toFixed(
-          2
-        )}\n\nYour order is being prepared!`,
+        '🎉 Order Placed Successfully!',
+        `Order #${docRef.id.slice(-6)}\n\nYour delicious pizza will arrive in 30-45 minutes!\n\nTotal: $${total.toFixed(2)}`,
         [
           {
-            text: 'View Orders',
-            onPress: () => {
-              try {
-                // adjust this route when you have an Orders screen
-                router.replace('/(drawer)/(tabs)/home' as any);
-              } catch (e) {
-                console.error('Navigation error:', e);
-              }
-            },
-          },
-          {
             text: 'OK',
-            onPress: () => {
-              try {
-                router.replace('/(drawer)/(tabs)/home' as any);
-              } catch (e) {
-                console.error('Navigation error:', e);
-              }
-            },
+            onPress: () => router.replace('/(drawer)/(tabs)/home' as any),
           },
         ]
       );
     } catch (error: any) {
       setLoading(false);
       console.error('Error placing order:', error);
-      Alert.alert(
-        'Order Failed',
-        error.message || 'Failed to place order. Please try again.'
-      );
+      Alert.alert('Order Failed', error.message || 'Failed to place order. Please try again.');
     }
   };
 
@@ -235,7 +227,6 @@ export default function CheckoutScreen() {
 
   const getCardIcon = (network: string) => {
     if (!network) return 'card-outline';
-
     switch (network.toLowerCase()) {
       case 'visa':
       case 'mastercard':
@@ -246,17 +237,12 @@ export default function CheckoutScreen() {
     }
   };
 
-  // ✅ recompute totals from cart for the UI
-  const subtotal = cartItems.reduce(
-    (total, item) => total + item.price * (item.quantity || 1),
-    0
-  );
+  const subtotal = cartItems.reduce((total, item) => total + item.price * (item.quantity || 1), 0);
   const tax = subtotal * 0.05;
   const totalAmount = subtotal + tax;
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
@@ -269,7 +255,6 @@ export default function CheckoutScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        {/* Order Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             <Ionicons name="receipt-outline" size={20} color="#1A1A1A" /> Order Summary
@@ -278,24 +263,14 @@ export default function CheckoutScreen() {
             {cartItems.map((item, index) => (
               <View key={index} style={styles.orderItem}>
                 <View style={styles.orderItemInfo}>
-                  <Text style={styles.orderItemName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  {item.size && (
-                    <Text style={styles.orderItemDetail}>Size: {item.size}</Text>
-                  )}
-                  {item.quantity && item.quantity > 1 && (
-                    <Text style={styles.orderItemDetail}>Qty: {item.quantity}</Text>
-                  )}
+                  <Text style={styles.orderItemName} numberOfLines={1}>{item.name}</Text>
+                  {item.size && <Text style={styles.orderItemDetail}>Size: {item.size}</Text>}
+                  {item.quantity && item.quantity > 1 && <Text style={styles.orderItemDetail}>Qty: {item.quantity}</Text>}
                 </View>
-                <Text style={styles.orderItemPrice}>
-                  ${(item.price * (item.quantity || 1)).toFixed(2)}
-                </Text>
+                <Text style={styles.orderItemPrice}>${(item.price * (item.quantity || 1)).toFixed(2)}</Text>
               </View>
             ))}
             <View style={styles.divider} />
-
-            {/* show subtotal + tax + total */}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Subtotal</Text>
               <Text style={styles.totalAmount}>${subtotal.toFixed(2)}</Text>
@@ -312,176 +287,66 @@ export default function CheckoutScreen() {
           </View>
         </View>
 
-        {/* Delivery Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             <Ionicons name="location-outline" size={20} color="#1A1A1A" /> Delivery Details
           </Text>
 
           <Text style={styles.inputLabel}>Full Name *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your full name"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            placeholderTextColor="#999"
-          />
+          <TextInput style={styles.input} placeholder="Enter your full name" value={name} onChangeText={setName} autoCapitalize="words" placeholderTextColor="#999" />
 
           <Text style={styles.inputLabel}>Phone Number *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="(123) 456-7890"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            maxLength={15}
-            placeholderTextColor="#999"
-          />
+          <TextInput style={styles.input} placeholder="(123) 456-7890" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={15} placeholderTextColor="#999" />
 
           <Text style={styles.inputLabel}>Delivery Address *</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="123 Main St, Apt 4B&#10;City, Province, Postal Code"
-            value={address}
-            onChangeText={setAddress}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-            placeholderTextColor="#999"
-          />
+          <TextInput style={[styles.input, styles.textArea]} placeholder="123 Main St, Apt 4B, City, Province, Postal Code" value={address} onChangeText={setAddress} multiline numberOfLines={3} textAlignVertical="top" placeholderTextColor="#999" />
         </View>
 
-        {/* Payment Method */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             <Ionicons name="card-outline" size={20} color="#1A1A1A" /> Payment Method
           </Text>
 
-          {/* Card Payment Option */}
-          <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              paymentMethod === 'card' && styles.paymentOptionSelected,
-            ]}
-            onPress={() => {
-              setPaymentMethod('card');
-              if (savedCards.length > 0 && !showNewCardInput) {
-                const defaultCard =
-                  savedCards.find((c: any) => c.isDefault) || savedCards[0];
-                setSelectedCard(defaultCard);
-              }
-            }}
-            activeOpacity={0.8}
-          >
-            <View style={styles.radioButton}>
-              {paymentMethod === 'card' && <View style={styles.radioButtonInner} />}
-            </View>
+          <TouchableOpacity style={[styles.paymentOption, paymentMethod === 'card' && styles.paymentOptionSelected]} onPress={() => { setPaymentMethod('card'); if (savedCards.length > 0 && !showNewCardInput) { const defaultCard = savedCards.find((c: any) => c.isDefault) || savedCards[0]; setSelectedCard(defaultCard); } }} activeOpacity={0.8}>
+            <View style={styles.radioButton}>{paymentMethod === 'card' && <View style={styles.radioButtonInner} />}</View>
             <Ionicons name="card" size={24} color="#FFC107" style={styles.paymentIcon} />
             <Text style={styles.paymentText}>Credit/Debit Card</Text>
           </TouchableOpacity>
 
-          {/* Saved Cards Section */}
           {paymentMethod === 'card' && savedCards.length > 0 && (
             <View style={styles.savedCardsContainer}>
               <Text style={styles.savedCardsTitle}>Your Cards</Text>
-
               {savedCards.map((card, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.savedCard,
-                    selectedCard?.id === card.id &&
-                      !showNewCardInput &&
-                      styles.savedCardSelected,
-                  ]}
-                  onPress={() => handleCardSelect(card)}
-                  activeOpacity={0.7}
-                >
+                <TouchableOpacity key={index} style={[styles.savedCard, selectedCard?.id === card.id && !showNewCardInput && styles.savedCardSelected]} onPress={() => handleCardSelect(card)} activeOpacity={0.7}>
                   <View style={styles.savedCardLeft}>
-                    <Ionicons
-                      name={getCardIcon(card.network)}
-                      size={28}
-                      color="#FFC107"
-                    />
+                    <Ionicons name={getCardIcon(card.network)} size={28} color="#FFC107" />
                     <View style={styles.savedCardInfo}>
-                      <Text style={styles.savedCardNetwork}>
-                        {card.network || 'Card'}
-                      </Text>
-                      <Text style={styles.savedCardNumber}>
-                        •••• {card.last4 || '****'}
-                      </Text>
-                      {card.isDefault && (
-                        <View style={styles.defaultBadge}>
-                          <Text style={styles.defaultBadgeText}>Default</Text>
-                        </View>
-                      )}
+                      <Text style={styles.savedCardNetwork}>{card.network || 'Card'}</Text>
+                      <Text style={styles.savedCardNumber}>•••• {card.last4 || '****'}</Text>
+                      {card.isDefault && <View style={styles.defaultBadge}><Text style={styles.defaultBadgeText}>Default</Text></View>}
                     </View>
                   </View>
-                  <View style={styles.savedCardCheck}>
-                    {selectedCard?.id === card.id && !showNewCardInput && (
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={24}
-                        color="#FFC107"
-                      />
-                    )}
-                  </View>
+                  <View style={styles.savedCardCheck}>{selectedCard?.id === card.id && !showNewCardInput && <Ionicons name="checkmark-circle" size={24} color="#FFC107" />}</View>
                 </TouchableOpacity>
               ))}
 
-              {/* Add New Card Option */}
-              <TouchableOpacity
-                style={[
-                  styles.addNewCardButton,
-                  showNewCardInput && styles.savedCardSelected,
-                ]}
-                onPress={handleAddNewCard}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="add-circle-outline"
-                  size={24}
-                  color="#FFC107"
-                />
+              <TouchableOpacity style={[styles.addNewCardButton, showNewCardInput && styles.savedCardSelected]} onPress={handleAddNewCard} activeOpacity={0.7}>
+                <Ionicons name="add-circle-outline" size={24} color="#FFC107" />
                 <Text style={styles.addNewCardText}>Add New Card</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* New Card Input */}
-          {paymentMethod === 'card' &&
-            (savedCards.length === 0 || showNewCardInput) && (
-              <View style={styles.cardInputContainer}>
-                <Text style={styles.inputLabel}>Card Number *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="1234 5678 9012 3456"
-                  value={cardNumber}
-                  onChangeText={setCardNumber}
-                  keyboardType="number-pad"
-                  maxLength={16}
-                  placeholderTextColor="#999"
-                />
-                <Text style={styles.cardHint}>
-                  💡 Save this card to your wallet after checkout for faster
-                  payments
-                </Text>
-              </View>
-            )}
-
-          {/* Cash Payment Option */}
-          <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              paymentMethod === 'cash' && styles.paymentOptionSelected,
-            ]}
-            onPress={() => setPaymentMethod('cash')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.radioButton}>
-              {paymentMethod === 'cash' && <View style={styles.radioButtonInner} />}
+          {paymentMethod === 'card' && (savedCards.length === 0 || showNewCardInput) && (
+            <View style={styles.cardInputContainer}>
+              <Text style={styles.inputLabel}>Card Number *</Text>
+              <TextInput style={styles.input} placeholder="1234 5678 9012 3456" value={cardNumber} onChangeText={setCardNumber} keyboardType="number-pad" maxLength={16} placeholderTextColor="#999" />
+              <Text style={styles.cardHint}>💡 Save this card to your wallet after checkout for faster payments</Text>
             </View>
+          )}
+
+          <TouchableOpacity style={[styles.paymentOption, paymentMethod === 'cash' && styles.paymentOptionSelected]} onPress={() => setPaymentMethod('cash')} activeOpacity={0.8}>
+            <View style={styles.radioButton}>{paymentMethod === 'cash' && <View style={styles.radioButtonInner} />}</View>
             <Ionicons name="cash" size={24} color="#FFC107" style={styles.paymentIcon} />
             <Text style={styles.paymentText}>Cash on Delivery</Text>
           </TouchableOpacity>
@@ -490,29 +355,12 @@ export default function CheckoutScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Place Order Button */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.placeOrderButton, loading && styles.buttonDisabled]}
-          onPress={handlePlaceOrder}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color="#1A1A1A" />
-          ) : (
-            <>
-              <Text style={styles.placeOrderText}>
-                Place Order — ${totalAmount.toFixed(2)}
-              </Text>
-              <Ionicons
-                name="arrow-forward"
-                size={20}
-                color="#1A1A1A"
-                style={{ marginLeft: 8 }}
-              />
-            </>
-          )}
+        <TouchableOpacity style={[styles.placeOrderButton, loading && styles.buttonDisabled]} onPress={handlePlaceOrder} disabled={loading} activeOpacity={0.85}>
+          {loading ? <ActivityIndicator color="#1A1A1A" /> : <>
+            <Text style={styles.placeOrderText}>Place Order — ${totalAmount.toFixed(2)}</Text>
+            <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
+          </>}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -520,262 +368,50 @@ export default function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  // (unchanged styles)
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F8F8',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
-  },
+  container: { flex: 1, backgroundColor: '#F8F8F8' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E8E8E8' },
   backButton: { padding: 4 },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  headerSub: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
+  headerTitle: { fontSize: 28, fontWeight: '700', color: '#1A1A1A', marginBottom: 4, textAlign: 'center' },
+  headerSub: { fontSize: 14, color: '#666', fontWeight: '500', textAlign: 'center' },
   scrollView: { flex: 1, paddingHorizontal: 16 },
-
-  section: {
-    backgroundColor: '#fff',
-    padding: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 12,
-  },
-
-  summaryBox: {
-    backgroundColor: '#FFFBF5',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: '#FFE082',
-  },
-  orderItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
+  section: { backgroundColor: '#fff', padding: 16, marginTop: 16, borderRadius: 12, borderWidth: 1.5, borderColor: '#E8E8E8', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A', marginBottom: 12 },
+  summaryBox: { backgroundColor: '#FFFBF5', borderRadius: 12, padding: 12, borderWidth: 1.5, borderColor: '#FFE082' },
+  orderItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
   orderItemInfo: { flex: 1, marginRight: 12 },
-  orderItemName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 2,
-  },
+  orderItemName: { fontSize: 14, fontWeight: '700', color: '#1A1A1A', marginBottom: 2 },
   orderItemDetail: { fontSize: 12, color: '#666' },
-  orderItemPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFC107',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#FFE082',
-    marginVertical: 8,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 4,
-  },
+  orderItemPrice: { fontSize: 14, fontWeight: '700', color: '#FFC107' },
+  divider: { height: 1, backgroundColor: '#FFE082', marginVertical: 8 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
   totalLabel: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
   totalAmount: { fontSize: 16, fontWeight: '700', color: '#FFC107' },
-
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 8,
-    color: '#1A1A1A',
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
+  inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 8, color: '#1A1A1A' },
+  input: { borderWidth: 1.5, borderColor: '#E8E8E8', borderRadius: 12, padding: 14, fontSize: 16, backgroundColor: '#fff' },
   textArea: { height: 100, textAlignVertical: 'top' },
-
-  paymentOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: '#fff',
-  },
-  paymentOptionSelected: {
-    borderColor: '#FFE082',
-    backgroundColor: '#FFFBF5',
-  },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#FFC107',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioButtonInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FFC107',
-  },
+  paymentOption: { flexDirection: 'row', alignItems: 'center', padding: 14, borderWidth: 1.5, borderColor: '#E8E8E8', borderRadius: 12, marginBottom: 12, backgroundColor: '#fff' },
+  paymentOptionSelected: { borderColor: '#FFE082', backgroundColor: '#FFFBF5' },
+  radioButton: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#FFC107', marginRight: 12, justifyContent: 'center', alignItems: 'center' },
+  radioButtonInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFC107' },
   paymentIcon: { marginRight: 10 },
   paymentText: { fontSize: 16, fontWeight: '600', color: '#1A1A1A' },
-
-  savedCardsContainer: {
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  savedCardsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 12,
-  },
-  savedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
-    borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
-  savedCardSelected: {
-    borderColor: '#FFE082',
-    backgroundColor: '#FFFBF5',
-  },
-  savedCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  savedCardInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  savedCardNetwork: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 2,
-  },
-  savedCardNumber: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
-  },
-  defaultBadge: {
-    backgroundColor: '#FFC107',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  defaultBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  savedCardCheck: {
-    marginLeft: 10,
-  },
-  addNewCardButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: '#E8E8E8',
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    borderStyle: 'dashed',
-  },
-  addNewCardText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFC107',
-    marginLeft: 10,
-  },
+  savedCardsContainer: { marginTop: 4, marginBottom: 12 },
+  savedCardsTitle: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 12 },
+  savedCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderWidth: 1.5, borderColor: '#E8E8E8', borderRadius: 12, marginBottom: 10, backgroundColor: '#fff' },
+  savedCardSelected: { borderColor: '#FFE082', backgroundColor: '#FFFBF5' },
+  savedCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  savedCardInfo: { marginLeft: 12, flex: 1 },
+  savedCardNetwork: { fontSize: 15, fontWeight: '700', color: '#1A1A1A', marginBottom: 2 },
+  savedCardNumber: { fontSize: 13, color: '#666', fontWeight: '500' },
+  defaultBadge: { backgroundColor: '#FFC107', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginTop: 4 },
+  defaultBadgeText: { fontSize: 10, fontWeight: '700', color: '#1A1A1A' },
+  savedCardCheck: { marginLeft: 10 },
+  addNewCardButton: { flexDirection: 'row', alignItems: 'center', padding: 14, borderWidth: 1.5, borderColor: '#E8E8E8', borderRadius: 12, backgroundColor: '#fff', borderStyle: 'dashed' },
+  addNewCardText: { fontSize: 15, fontWeight: '600', color: '#FFC107', marginLeft: 10 },
   cardInputContainer: { marginBottom: 12 },
-  cardHint: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-
-  footer: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 8,
-  },
-  placeOrderButton: {
-    backgroundColor: '#FFC107',
-    paddingVertical: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    shadowColor: '#FFC107',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
+  cardHint: { fontSize: 12, color: '#666', marginTop: 8, fontStyle: 'italic' },
+  footer: { backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 24, borderTopWidth: 1, borderTopColor: '#E8E8E8', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 8 },
+  placeOrderButton: { backgroundColor: '#FFC107', paddingVertical: 18, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', shadowColor: '#FFC107', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   buttonDisabled: { opacity: 0.6 },
-  placeOrderText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
+  placeOrderText: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
 });
