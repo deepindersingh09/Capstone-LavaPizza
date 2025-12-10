@@ -17,7 +17,9 @@
       "Bash(taskkill:*)",
       "Bash(echo:*)",
       "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\" /b)",
-      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\\agent\" /b)"
+      "Bash(dir \"c:\\semester 4\\capstone project\\Capstone-LavaPizza\\app\\agent\" /b)",
+      "Bash(git checkout:*)",
+      "Bash(copy /b appcheckout.tsx +,,)"
     ],
     "deny": [],
     "ask": []
