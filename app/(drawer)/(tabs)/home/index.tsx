@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseConfig';
 
 
 
@@ -138,7 +138,7 @@ export default function HomeScreen() {
 
   return (
 
-    <SafeAreaView style={styles.safe} edges={['left','right','bottom']}>
+    <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 

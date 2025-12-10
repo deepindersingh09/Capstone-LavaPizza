@@ -381,7 +381,10 @@ export default function Profile() {
           >
             Manage alerts and reminders for orders and updates.
           </Text>
-          <TouchableOpacity style={[styles.settingBtn, { marginTop: spacing.sm }]}>
+          <TouchableOpacity
+            style={[styles.settingBtn, { marginTop: spacing.sm }]}
+            onPress={() => router.push("/agent/notifications-settings" as any)}
+          >
             <Ionicons name="notifications-outline" size={22} color={theme.primary} />
             <Text style={[styles.settingText, { color: theme.text, fontSize: fontSize.sm }]}>
               Customize Notifications
@@ -406,13 +409,19 @@ export default function Profile() {
           <Text style={[styles.sectionTitle, { color: theme.text, fontSize: fontSize.md }]}>
             Support & Help Center
           </Text>
-          <TouchableOpacity style={[styles.settingBtn, { marginTop: spacing.sm }]}>
+          <TouchableOpacity
+            style={[styles.settingBtn, { marginTop: spacing.sm }]}
+            onPress={() => router.push("/agent/live-chat" as any)}
+          >
             <Ionicons name="chatbubbles-outline" size={22} color={theme.primary} />
             <Text style={[styles.settingText, { color: theme.text, fontSize: fontSize.sm }]}>
               Live Chat Support
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.settingBtn, { marginTop: spacing.sm }]}>
+          <TouchableOpacity
+            style={[styles.settingBtn, { marginTop: spacing.sm }]}
+            onPress={() => router.push("/agent/faq" as any)}
+          >
             <Ionicons name="help-circle-outline" size={22} color={theme.primary} />
             <Text style={[styles.settingText, { color: theme.text, fontSize: fontSize.sm }]}>
               FAQ & Tutorials

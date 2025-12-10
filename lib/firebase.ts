@@ -1,25 +1,6 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+// lib/firebase.ts
+// Small compatibility wrapper to match existing import paths across the repo.
+import app, { auth, db, storage } from "./firebaseConfig";
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyD5AevqcU5AfLqQ1QV6AjQMStDDfd0TeBk",
-  authDomain: "lava-pizza.firebaseapp.com",
-  projectId: "lava-pizza",
-  storageBucket: "lava-pizza.firebasestorage.app",
-  messagingSenderId: "898725473422",
-  appId: "1:898725473422:web:493925b270a984f1396ddf",
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-
+export { app, auth, db, storage };
 export default app;

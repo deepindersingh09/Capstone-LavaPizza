@@ -21,8 +21,7 @@ import {
   addDoc,
   WhereFilterOp,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { storage } from "@/lib/firebase";
+import { db, storage } from "../firebase";
 import {
   Order,
   DeliveryAgent,

@@ -4,6 +4,16 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useRouter } from 'expo-router';
 import { menuCategories } from '@/data/menuData';
 
+// Color constants to match your design
+const COLORS = {
+  primary: '#FFC107',      // Yellow/Orange
+  primaryLight: '#FFF9E6', // Light yellow background
+  text: '#333',
+  textLight: '#666',
+  background: '#fff',
+  cardShadow: 'rgba(0, 0, 0, 0.1)',
+};
+
 export default function MenuCategories() {
   const router = useRouter();
 
@@ -38,6 +48,7 @@ export default function MenuCategories() {
             key={category.id}
             style={styles.categoryCard}
             onPress={() => router.push(`/menu/${category.id}`)}
+            activeOpacity={0.7}
           >
             <View style={styles.imageContainer}>
               <Text style={styles.categoryEmoji}>
@@ -55,16 +66,16 @@ export default function MenuCategories() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   header: {
     padding: 20,
     paddingTop: 60,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.text,
   },
   grid: {
     flexDirection: 'row',
@@ -74,7 +85,7 @@ const styles = StyleSheet.create({
   categoryCard: {
     width: '31%',
     margin: '1.16%',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -88,7 +99,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: '100%',
     height: 80,
-    backgroundColor: '#FFE5E5',
+    backgroundColor: COLORS.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -99,7 +110,7 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     textAlign: 'center',
     paddingHorizontal: 4,
   },

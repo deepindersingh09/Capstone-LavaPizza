@@ -1,4 +1,5 @@
 // app/(drawer)/(tabs)/cart.tsx
+
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -13,6 +14,9 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+// ❌ OrderService removed – cart screen no longer creates orders
+// import OrderService from '../../../services/OrderService';
+import { auth } from '../../../lib/firebaseConfig';
 
 interface CartItem {
   id: string;
@@ -30,6 +34,7 @@ export default function CartScreen() {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false); // stays but no longer used
 
   // Load cart when screen is focused
   useFocusEffect(
@@ -98,23 +103,55 @@ export default function CartScreen() {
     );
   };
 
+  const clearCart = async () => {
+    try {
+      await AsyncStorage.setItem('@cart', JSON.stringify([]));
+      setCartItems([]);
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+    }
+  };
+
   const getTotal = () => {
     return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
+  // ✅ NEW VERSION – only navigates to checkout
   const handleCheckout = () => {
     if (cartItems.length === 0) {
       Alert.alert('Cart Empty', 'Add some pizzas first!');
       return;
     }
 
-    const total = subtotal + tax;
-    
+    const user = auth.currentUser;
+
+    // Check if user is logged in
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to place an order',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign In',
+            onPress: () => {
+              try {
+                router.push('/login' as any);
+              } catch (e) {
+                console.error('Navigation error:', e);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // ✅ User logged in & cart has items → go to Checkout screen
     try {
-      router.push(`/checkout?total=${total.toFixed(2)}`);
+      router.push('/checkout' as any); // change path if your checkout route is different
     } catch (e) {
       console.error('Navigation error:', e);
-      Alert.alert('Error', 'Could not navigate to checkout');
     }
   };
 
@@ -176,7 +213,7 @@ export default function CartScreen() {
           <View key={item.id} style={styles.cartItem}>
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.name}</Text>
-              
+
               {item.size && (
                 <View style={styles.sizeContainer}>
                   <Text style={styles.itemDetail}>Size: {item.size}</Text>
@@ -188,7 +225,7 @@ export default function CartScreen() {
                   {item.crust.charAt(0).toUpperCase() + item.crust.slice(1)} Crust
                 </Text>
               )}
-              
+
               <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
 
               {item.type === 'custom' && item.toppings && item.toppings.length > 0 && (
@@ -212,8 +249,8 @@ export default function CartScreen() {
 
             <View style={styles.rightSection}>
               <View style={styles.qtyContainer}>
-                <TouchableOpacity 
-                  style={styles.qtyButton} 
+                <TouchableOpacity
+                  style={styles.qtyButton}
                   onPress={() => decreaseQty(item.id)}
                   activeOpacity={0.7}
                 >
@@ -222,8 +259,8 @@ export default function CartScreen() {
 
                 <Text style={styles.qtyValue}>{item.quantity}</Text>
 
-                <TouchableOpacity 
-                  style={styles.qtyButton} 
+                <TouchableOpacity
+                  style={styles.qtyButton}
                   onPress={() => increaseQty(item.id)}
                   activeOpacity={0.7}
                 >
@@ -235,7 +272,7 @@ export default function CartScreen() {
                 ${(item.price * item.quantity).toFixed(2)}
               </Text>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => handleRemove(item.id, item.name)}
                 activeOpacity={0.7}
@@ -266,13 +303,20 @@ export default function CartScreen() {
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.checkoutButton} 
+        <TouchableOpacity
+          style={[
+            styles.checkoutButton,
+            isPlacingOrder && styles.checkoutButtonDisabled
+          ]}
           onPress={handleCheckout}
           activeOpacity={0.8}
+          disabled={isPlacingOrder}
         >
-          <Text style={styles.checkoutText}>Proceed to Checkout</Text>
-          <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
+          {/* isPlacingOrder is always false now, so this shows the normal state */}
+          <>
+            <Text style={styles.checkoutText}>Place Order</Text>
+            <Ionicons name="arrow-forward" size={20} color="#1A1A1A" style={{ marginLeft: 8 }} />
+          </>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -280,6 +324,7 @@ export default function CartScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ... your existing styles unchanged ...
   container: {
     flex: 1,
     backgroundColor: "#F8F8F8",
@@ -492,6 +537,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  checkoutButtonDisabled: {
+    opacity: 0.7,
   },
   checkoutText: {
     fontSize: 16,

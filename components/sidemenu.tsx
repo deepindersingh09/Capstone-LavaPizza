@@ -10,7 +10,7 @@ import { useRouter, withLayoutContext } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth } from '../lib/firebaseConfig';
 const Drawer = createDrawerNavigator();
 export const DrawerLayout = withLayoutContext(Drawer.Navigator);
 

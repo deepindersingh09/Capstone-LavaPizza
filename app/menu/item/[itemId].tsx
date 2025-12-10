@@ -7,12 +7,76 @@ import {
   TouchableOpacity, 
   ScrollView, 
   Alert,
-  ActivityIndicator 
+  ActivityIndicator,
+  TextInput 
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { menuItems } from '@/data/menuData';
 import { useCart } from '../../context/CartContext';
+
+// Color constants to match your design
+const COLORS = {
+  primary: '#FFC107',      // Yellow/Orange
+  primaryDark: '#FFB300',  // Darker yellow
+  text: '#333',
+  textLight: '#666',
+  background: '#fff',
+  backgroundLight: '#f5f5f5',
+  border: '#f0f0f0',
+};
+
+// Regular toppings
+const TOPPINGS = [
+  { id: 'pepperoni', name: 'Pepperoni', price: 1.50 },
+  { id: 'mushrooms', name: 'Mushrooms', price: 1.00 },
+  { id: 'onions', name: 'Onions', price: 0.75 },
+  { id: 'peppers', name: 'Peppers', price: 1.00 },
+  { id: 'olives', name: 'Olives', price: 1.00 },
+  { id: 'bacon', name: 'Bacon', price: 2.00 },
+  { id: 'sausage', name: 'Sausage', price: 1.75 },
+  { id: 'ham', name: 'Ham', price: 1.75 },
+  { id: 'chicken', name: 'Chicken', price: 2.50 },
+  { id: 'pineapple', name: 'Pineapple', price: 1.00 },
+  { id: 'jalapeños', name: 'Jalapeños', price: 0.75 },
+  { id: 'extra-cheese', name: 'Extra Cheese', price: 1.50 },
+];
+
+// Additional/Premium toppings
+const ADDITIONAL_TOPPINGS = [
+  { id: 'grilled-chicken', name: 'Grilled Chicken', price: 3.50 },
+  { id: 'bbq-chicken', name: 'BBQ Chicken', price: 3.50 },
+  { id: 'buffalo-chicken', name: 'Buffalo Chicken', price: 3.50 },
+  { id: 'steak', name: 'Steak', price: 4.00 },
+  { id: 'shrimp', name: 'Shrimp', price: 4.50 },
+  { id: 'feta-cheese', name: 'Feta Cheese', price: 2.00 },
+  { id: 'goat-cheese', name: 'Goat Cheese', price: 2.50 },
+  { id: 'parmesan', name: 'Fresh Parmesan', price: 2.00 },
+  { id: 'sun-dried-tomatoes', name: 'Sun-Dried Tomatoes', price: 2.00 },
+  { id: 'artichokes', name: 'Artichokes', price: 2.50 },
+  { id: 'roasted-garlic', name: 'Roasted Garlic', price: 1.50 },
+  { id: 'fresh-basil', name: 'Fresh Basil', price: 1.50 },
+];
+
+// Available dips
+const DIPS = [
+  { id: 'ranch', name: 'Ranch Dip', price: 1.49 },
+  { id: 'garlic', name: 'Garlic Dip', price: 1.49 },
+  { id: 'marinara', name: 'Marinara Sauce', price: 1.49 },
+  { id: 'bbq', name: 'BBQ Sauce', price: 1.49 },
+  { id: 'hot-sauce', name: 'Hot Sauce', price: 1.49 },
+];
+
+// Available drinks
+const DRINKS = [
+  { id: 'coke-can', name: 'Coke (Can)', price: 1.99 },
+  { id: 'pepsi-can', name: 'Pepsi (Can)', price: 1.99 },
+  { id: 'sprite-can', name: 'Sprite (Can)', price: 1.99 },
+  { id: 'coke-2l', name: 'Coke (2L)', price: 3.99 },
+  { id: 'pepsi-2l', name: 'Pepsi (2L)', price: 3.99 },
+  { id: 'sprite-2l', name: 'Sprite (2L)', price: 3.99 },
+  { id: 'water', name: 'Bottled Water', price: 1.99 },
+];
 
 export default function ItemDetail() {
   const router = useRouter();
@@ -23,6 +87,11 @@ export default function ItemDetail() {
   const [selectedSize, setSelectedSize] = useState(item?.sizes?.[0] || null);
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
+  const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
+  const [selectedAdditionalToppings, setSelectedAdditionalToppings] = useState<string[]>([]);
+  const [selectedDips, setSelectedDips] = useState<string[]>([]);
+  const [selectedDrinks, setSelectedDrinks] = useState<string[]>([]);
+  const [specialInstructions, setSpecialInstructions] = useState('');
 
   if (!item) {
     return (
@@ -37,33 +106,116 @@ export default function ItemDetail() {
     );
   }
 
+  // Check if item can have toppings (pizzas mainly)
+  const canHaveToppings = item.category.includes('pizza') || item.category === 'pizza-subs';
+
+  // Calculate prices
   const currentPrice = selectedSize ? selectedSize.price : item.price;
-  const totalPrice = currentPrice * quantity;
+  const toppingsPrice = selectedToppings.reduce((sum, toppingId) => {
+    const topping = TOPPINGS.find(t => t.id === toppingId);
+    return sum + (topping?.price || 0);
+  }, 0);
+  const additionalToppingsPrice = selectedAdditionalToppings.reduce((sum, toppingId) => {
+    const topping = ADDITIONAL_TOPPINGS.find(t => t.id === toppingId);
+    return sum + (topping?.price || 0);
+  }, 0);
+  const dipsPrice = selectedDips.reduce((sum, dipId) => {
+    const dip = DIPS.find(d => d.id === dipId);
+    return sum + (dip?.price || 0);
+  }, 0);
+  const drinksPrice = selectedDrinks.reduce((sum, drinkId) => {
+    const drink = DRINKS.find(d => d.id === drinkId);
+    return sum + (drink?.price || 0);
+  }, 0);
+  
+  const totalPrice = (currentPrice + toppingsPrice + additionalToppingsPrice + dipsPrice + drinksPrice) * quantity;
+
+  const toggleTopping = (toppingId: string) => {
+    setSelectedToppings(prev => 
+      prev.includes(toppingId) 
+        ? prev.filter(id => id !== toppingId)
+        : [...prev, toppingId]
+    );
+  };
+
+  const toggleAdditionalTopping = (toppingId: string) => {
+    setSelectedAdditionalToppings(prev => 
+      prev.includes(toppingId) 
+        ? prev.filter(id => id !== toppingId)
+        : [...prev, toppingId]
+    );
+  };
+
+  const toggleDip = (dipId: string) => {
+    setSelectedDips(prev => 
+      prev.includes(dipId) 
+        ? prev.filter(id => id !== dipId)
+        : [...prev, dipId]
+    );
+  };
+
+  const toggleDrink = (drinkId: string) => {
+    setSelectedDrinks(prev => 
+      prev.includes(drinkId) 
+        ? prev.filter(id => id !== drinkId)
+        : [...prev, drinkId]
+    );
+  };
 
   const handleAddToCart = async () => {
     setIsAdding(true);
     
     try {
-      // Create unique ID combining item id and size
-      const uniqueId = `${item.id}-${selectedSize?.size || 'default'}`;
+      const uniqueId = `${item.id}-${selectedSize?.size || 'default'}-${Date.now()}`;
       
+      // Build customizations string
+      let customizations = '';
+      if (selectedToppings.length > 0) {
+        customizations += `Toppings: ${selectedToppings.map(id => 
+          TOPPINGS.find(t => t.id === id)?.name
+        ).join(', ')}`;
+      }
+      if (selectedAdditionalToppings.length > 0) {
+        if (customizations) customizations += ' | ';
+        customizations += `Premium: ${selectedAdditionalToppings.map(id => 
+          ADDITIONAL_TOPPINGS.find(t => t.id === id)?.name
+        ).join(', ')}`;
+      }
+      if (selectedDips.length > 0) {
+        if (customizations) customizations += ' | ';
+        customizations += `Dips: ${selectedDips.map(id => 
+          DIPS.find(d => d.id === id)?.name
+        ).join(', ')}`;
+      }
+      if (selectedDrinks.length > 0) {
+        if (customizations) customizations += ' | ';
+        customizations += `Drinks: ${selectedDrinks.map(id => 
+          DRINKS.find(d => d.id === id)?.name
+        ).join(', ')}`;
+      }
+      if (specialInstructions) {
+        if (customizations) customizations += ' | ';
+        customizations += `Note: ${specialInstructions}`;
+      }
+
       console.log('🛍️ Adding to cart:', {
         id: uniqueId,
         name: item.name,
         size: selectedSize?.size,
         quantity,
-        price: currentPrice
+        price: totalPrice / quantity,
+        customizations
       });
 
       addItem({
         id: uniqueId,
         name: item.name,
-        price: currentPrice,
+        price: totalPrice / quantity,
         quantity: quantity,
         size: selectedSize?.size,
+        customizations,
       });
 
-      // Small delay to ensure state updates
       await new Promise(resolve => setTimeout(resolve, 100));
 
       Alert.alert(
@@ -96,22 +248,19 @@ export default function ItemDetail() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header with Close Button */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={24} color="#E53935" />
+        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
+          <Ionicons name="close" size={28} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Item Image Placeholder */}
+        {/* Item Image Placeholder - SMALLER */}
         <View style={styles.imageContainer}>
           <View style={styles.placeholderImage}>
             <Text style={styles.placeholderEmoji}>🍕</Text>
-            <Text style={styles.placeholderText}>{item.name}</Text>
           </View>
           {item.popular && (
             <View style={styles.popularBadge}>
@@ -130,7 +279,7 @@ export default function ItemDetail() {
 
           {/* Size Selection (if applicable) */}
           {item.sizes && item.sizes.length > 0 && (
-            <View style={styles.sizeSection}>
+            <View style={styles.section}>
               <Text style={styles.sectionTitle}>Select Size</Text>
               <View style={styles.sizeOptions}>
                 {item.sizes.map((size) => (
@@ -160,54 +309,222 @@ export default function ItemDetail() {
             </View>
           )}
 
+          {/* Add Toppings (only for pizza items) */}
+          {canHaveToppings && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Add Toppings (Optional)</Text>
+              <View style={styles.addonsGrid}>
+                {TOPPINGS.map((topping) => (
+                  <TouchableOpacity
+                    key={topping.id}
+                    style={[
+                      styles.addonButton,
+                      selectedToppings.includes(topping.id) && styles.addonButtonActive
+                    ]}
+                    onPress={() => toggleTopping(topping.id)}
+                  >
+                    {selectedToppings.includes(topping.id) && (
+                      <Ionicons 
+                        name="checkmark-circle" 
+                        size={18} 
+                        color={COLORS.primary} 
+                        style={styles.addonCheck}
+                      />
+                    )}
+                    <Text style={[
+                      styles.addonName,
+                      selectedToppings.includes(topping.id) && styles.addonNameActive
+                    ]}>
+                      {topping.name}
+                    </Text>
+                    <Text style={styles.addonPrice}>+${topping.price.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Additional/Premium Toppings (only for pizza items) */}
+          {canHaveToppings && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Premium Toppings (Optional)</Text>
+                <View style={styles.premiumBadge}>
+                  <Ionicons name="star" size={12} color="#FFF" />
+                  <Text style={styles.premiumBadgeText}>Premium</Text>
+                </View>
+              </View>
+              <View style={styles.addonsGrid}>
+                {ADDITIONAL_TOPPINGS.map((topping) => (
+                  <TouchableOpacity
+                    key={topping.id}
+                    style={[
+                      styles.addonButton,
+                      styles.premiumAddonButton,
+                      selectedAdditionalToppings.includes(topping.id) && styles.addonButtonActive
+                    ]}
+                    onPress={() => toggleAdditionalTopping(topping.id)}
+                  >
+                    {selectedAdditionalToppings.includes(topping.id) && (
+                      <Ionicons 
+                        name="checkmark-circle" 
+                        size={18} 
+                        color={COLORS.primary} 
+                        style={styles.addonCheck}
+                      />
+                    )}
+                    <Text style={[
+                      styles.addonName,
+                      selectedAdditionalToppings.includes(topping.id) && styles.addonNameActive
+                    ]}>
+                      {topping.name}
+                    </Text>
+                    <Text style={styles.addonPrice}>+${topping.price.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Add Dips */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Add Dips (Optional)</Text>
+            <View style={styles.addonsGrid}>
+              {DIPS.map((dip) => (
+                <TouchableOpacity
+                  key={dip.id}
+                  style={[
+                    styles.addonButton,
+                    selectedDips.includes(dip.id) && styles.addonButtonActive
+                  ]}
+                  onPress={() => toggleDip(dip.id)}
+                >
+                  {selectedDips.includes(dip.id) && (
+                    <Ionicons 
+                      name="checkmark-circle" 
+                      size={18} 
+                      color={COLORS.primary} 
+                      style={styles.addonCheck}
+                    />
+                  )}
+                  <Text style={[
+                    styles.addonName,
+                    selectedDips.includes(dip.id) && styles.addonNameActive
+                  ]}>
+                    {dip.name}
+                  </Text>
+                  <Text style={styles.addonPrice}>+${dip.price.toFixed(2)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Add Drinks */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Add Drinks (Optional)</Text>
+            <View style={styles.addonsGrid}>
+              {DRINKS.map((drink) => (
+                <TouchableOpacity
+                  key={drink.id}
+                  style={[
+                    styles.addonButton,
+                    selectedDrinks.includes(drink.id) && styles.addonButtonActive
+                  ]}
+                  onPress={() => toggleDrink(drink.id)}
+                >
+                  {selectedDrinks.includes(drink.id) && (
+                    <Ionicons 
+                      name="checkmark-circle" 
+                      size={18} 
+                      color={COLORS.primary} 
+                      style={styles.addonCheck}
+                    />
+                  )}
+                  <Text style={[
+                    styles.addonName,
+                    selectedDrinks.includes(drink.id) && styles.addonNameActive
+                  ]}>
+                    {drink.name}
+                  </Text>
+                  <Text style={styles.addonPrice}>+${drink.price.toFixed(2)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Special Instructions */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Special Instructions (Optional)</Text>
+            <TextInput
+              style={styles.instructionsInput}
+              placeholder="e.g., Extra crispy, No onions, etc."
+              placeholderTextColor={COLORS.textLight}
+              value={specialInstructions}
+              onChangeText={setSpecialInstructions}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
           {/* Quantity Selector */}
-          <View style={styles.quantitySection}>
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Quantity</Text>
             <View style={styles.quantityControls}>
               <TouchableOpacity
                 style={styles.quantityButton}
                 onPress={() => setQuantity(Math.max(1, quantity - 1))}
               >
-                <Ionicons name="remove" size={20} color="#333" />
+                <Ionicons name="remove" size={24} color="#FFF" />
               </TouchableOpacity>
               <Text style={styles.quantityText}>{quantity}</Text>
               <TouchableOpacity
                 style={styles.quantityButton}
                 onPress={() => setQuantity(quantity + 1)}
               >
-                <Ionicons name="add" size={20} color="#333" />
+                <Ionicons name="add" size={24} color="#FFF" />
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Total Price */}
+          <View style={styles.totalSection}>
+            <View>
+              <Text style={styles.totalLabel}>Total</Text>
+              {(toppingsPrice > 0 || additionalToppingsPrice > 0 || dipsPrice > 0 || drinksPrice > 0) && (
+                <Text style={styles.priceBreakdown}>
+                  Base: ${currentPrice.toFixed(2)}
+                  {toppingsPrice > 0 && ` + Toppings: $${toppingsPrice.toFixed(2)}`}
+                  {additionalToppingsPrice > 0 && ` + Premium: $${additionalToppingsPrice.toFixed(2)}`}
+                  {dipsPrice > 0 && ` + Dips: $${dipsPrice.toFixed(2)}`}
+                  {drinksPrice > 0 && ` + Drinks: $${drinksPrice.toFixed(2)}`}
+                </Text>
+              )}
+            </View>
+            <Text style={styles.totalPrice}>${totalPrice.toFixed(2)}</Text>
+          </View>
+
+          {/* Add to Cart Button */}
+          <TouchableOpacity 
+            style={[
+              styles.addToCartButton,
+              (isAdding || cartLoading) && styles.addToCartButtonDisabled
+            ]}
+            onPress={handleAddToCart}
+            disabled={isAdding || cartLoading}
+          >
+            {isAdding ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="cart" size={20} color="#FFF" style={styles.cartIcon} />
+                <Text style={styles.addToCartText}>Add to Cart</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
-
-      {/* Bottom Bar */}
-      <View style={styles.bottomBar}>
-        <View style={styles.priceInfo}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalPrice}>${totalPrice.toFixed(2)}</Text>
-        </View>
-        <TouchableOpacity 
-          style={[
-            styles.addToCartButton,
-            (isAdding || cartLoading) && styles.addToCartButtonDisabled
-          ]}
-          onPress={handleAddToCart}
-          disabled={isAdding || cartLoading}
-        >
-          {isAdding ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <>
-              <Ionicons name="cart" size={20} color="#FFF" style={styles.cartIcon} />
-              <Text style={styles.addToCartText}>Add to Cart</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -215,7 +532,7 @@ export default function ItemDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
   },
   errorContainer: {
     flex: 1,
@@ -225,12 +542,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    color: '#666',
+    color: COLORS.textLight,
     marginBottom: 16,
   },
   backLink: {
     fontSize: 16,
-    color: '#E53935',
+    color: COLORS.primary,
     textDecorationLine: 'underline',
   },
   header: {
@@ -240,32 +557,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
     zIndex: 10,
   },
-  backButton: {
+  closeButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-  },
-  favoriteButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
   },
   content: {
     flex: 1,
   },
   imageContainer: {
     width: '100%',
-    height: 300,
-    backgroundColor: '#FFF0F0',
+    height: 180,
+    backgroundColor: '#FFF',
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
@@ -275,26 +582,18 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFE5E5',
+    backgroundColor: '#FFF',
   },
   placeholderEmoji: {
     fontSize: 80,
-    marginBottom: 12,
-  },
-  placeholderText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    textAlign: 'center',
-    paddingHorizontal: 20,
   },
   popularBadge: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E53935',
+    backgroundColor: COLORS.primary,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -311,62 +610,128 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    color: COLORS.text,
+    marginBottom: 6,
   },
   itemDescription: {
-    fontSize: 15,
-    color: '#666',
-    lineHeight: 22,
+    fontSize: 14,
+    color: COLORS.textLight,
+    lineHeight: 20,
     marginBottom: 20,
   },
-  sizeSection: {
-    marginBottom: 24,
+  section: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    color: COLORS.text,
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B35',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  premiumBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFF',
+    marginLeft: 3,
   },
   sizeOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   sizeButton: {
     flex: 1,
-    minWidth: '45%',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
+    minWidth: '30%',
+    backgroundColor: COLORS.backgroundLight,
+    borderRadius: 10,
+    padding: 14,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
   },
   sizeButtonActive: {
-    backgroundColor: '#FFE5E5',
-    borderColor: '#E53935',
+    backgroundColor: COLORS.background,
+    borderColor: COLORS.primary,
   },
   sizeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.text,
     marginBottom: 4,
   },
   sizeTextActive: {
-    color: '#E53935',
+    color: COLORS.text,
   },
   sizePrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.textLight,
   },
   sizePriceActive: {
-    color: '#E53935',
+    color: COLORS.text,
   },
-  quantitySection: {
-    marginBottom: 24,
+  addonsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  addonButton: {
+    backgroundColor: COLORS.backgroundLight,
+    borderRadius: 10,
+    padding: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: '47%',
+  },
+  premiumAddonButton: {
+    backgroundColor: '#FFF5E6',
+  },
+  addonButtonActive: {
+    backgroundColor: '#FFFBF0',
+    borderColor: COLORS.primary,
+  },
+  addonCheck: {
+    marginRight: 6,
+  },
+  addonName: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.text,
+    flex: 1,
+  },
+  addonNameActive: {
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  addonPrice: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '500',
+  },
+  instructionsInput: {
+    backgroundColor: COLORS.backgroundLight,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    color: COLORS.text,
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   quantityControls: {
     flexDirection: 'row',
@@ -375,47 +740,51 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   quantityButton: {
-    width: 44,
-    height: 44,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 22,
+    width: 50,
+    height: 50,
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   quantityText: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: COLORS.text,
     minWidth: 40,
     textAlign: 'center',
   },
-  bottomBar: {
+  totalSection: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    padding: 16,
+    marginBottom: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: '#fff',
-  },
-  priceInfo: {
-    flex: 1,
+    borderTopColor: COLORS.border,
   },
   totalLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  priceBreakdown: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: 4,
   },
   totalPrice: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#E53935',
+    color: COLORS.primary,
   },
   addToCartButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E53935',
-    borderRadius: 12,
-    paddingVertical: 14,
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
     paddingHorizontal: 24,
   },
   addToCartButtonDisabled: {
@@ -425,7 +794,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   addToCartText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: '#FFF',
   },

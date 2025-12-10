@@ -5,7 +5,7 @@ import { Link, useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut, updateProfile } from 'firebase/auth';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { auth } from '../../lib/firebase';
+import { auth } from '../../lib/firebaseConfig';
 import React from 'react';
 
 export default function SignupCustomer() {
@@ -69,7 +69,7 @@ export default function SignupCustomer() {
 
   return (
     <View style={styles.container}>
-      
+
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} />
 
       <Text style={styles.heading}>Create an Account</Text>

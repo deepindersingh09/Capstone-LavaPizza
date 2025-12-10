@@ -2,7 +2,7 @@
 import type { Router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebaseConfig';
 
 export async function continueAsGuestLocal(router: Router) {
   await AsyncStorage.setItem('@guest_mode', '1');
