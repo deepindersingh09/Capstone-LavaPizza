@@ -6,8 +6,8 @@ import { menuCategories } from '@/data/menuData';
 
 // Color constants to match your design
 const COLORS = {
-  primary: '#FFC107',      // Yellow/Orange
-  primaryLight: '#FFF9E6', // Light yellow background
+  primary: '#E53935',      // Red (Lava Pizza theme)
+  primaryLight: '#FFE5E5', // Light red background
   text: '#333',
   textLight: '#666',
   background: '#fff',
@@ -17,29 +17,11 @@ const COLORS = {
 export default function MenuCategories() {
   const router = useRouter();
 
-  // Category emoji mapping
-  const categoryEmojis: { [key: string]: string } = {
-    'pasta': '🍝',
-    'gourmet-pizza': '🍕',
-    'pizza': '🍕',
-    'double-pizza-deals': '🍕🍕',
-    'appetizers': '🥟',
-    'drinks-dips': '🥤',
-    'chicken-wings': '🍗',
-    'poutines': '🍟',
-    'pizza-subs': '🥪',
-    'shawarma-wraps': '🌯',
-    'sides': '🍟',
-    'walk-in-specials': '⭐',
-    'meals': '🍽️',
-    'salads': '🥗',
-    'cakes': '🍰',
-  };
-
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.title}>Explore the menu</Text>
+        <Text style={styles.title}>Explore the Menu</Text>
+        <Text style={styles.subtitle}>Choose a category to start ordering</Text>
       </View>
 
       <View style={styles.grid}>
@@ -52,13 +34,16 @@ export default function MenuCategories() {
           >
             <View style={styles.imageContainer}>
               <Text style={styles.categoryEmoji}>
-                {categoryEmojis[category.id] || category.icon || '🍽️'}
+                {category.icon}
               </Text>
             </View>
             <Text style={styles.categoryName}>{category.name}</Text>
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Bottom spacing */}
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 }
@@ -71,11 +56,17 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: COLORS.text,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: COLORS.textLight,
   },
   grid: {
     flexDirection: 'row',
@@ -113,5 +104,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: 'center',
     paddingHorizontal: 4,
+    lineHeight: 16,
   },
 });
