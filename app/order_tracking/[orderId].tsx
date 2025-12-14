@@ -1,260 +1,318 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Alert, Linking, Platform } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
+  Alert,
+  Linking,
+  Platform,
+} from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type LatLng = { lat: number; lng: number };
 
 type Order = {
-  status: "RECEIVED" | "PREPARING" | "BAKING" | "OUT_FOR_DELIVERY" | "DELIVERED" | string;
+  status: string;
   etaMinutes?: number;
-  updatedAt?: number;
-  store?: { name?: string; location?: LatLng };
-  customer?: { location?: LatLng };
-  driver?: { name?: string; phone?: string; location?: LatLng; heading?: number };
+
+  restaurantAddress?: {
+    location?: { latitude?: number; longitude?: number };
+    street?: string;
+    city?: string;
+  };
+
+  deliveryAddress?: {
+    location?: { latitude?: number; longitude?: number };
+    street?: string;
+    city?: string;
+  };
+
+  driver?: {
+    name?: string;
+    phone?: string;
+    location?: { latitude?: number; longitude?: number };
+  };
+
+  updatedAt?: any;
 };
 
 const STATUS_STEPS = [
-  { key: "RECEIVED", label: "Received" },
+  { key: "PENDING", label: "Pending" },
   { key: "PREPARING", label: "Preparing" },
-  { key: "BAKING", label: "Baking" },
-  { key: "OUT_FOR_DELIVERY", label: "Out for delivery" },
-  { key: "DELIVERED", label: "Delivered" },
+  { key: "READY", label: "Ready" },
+  { key: "COMPLETED", label: "Completed" },
 ] as const;
+
+type StatusKey = (typeof STATUS_STEPS)[number]["key"];
+
+function toLatLng(lat?: number, lng?: number): LatLng | null {
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+  return { lat, lng };
+}
+
+// ✅ Normalize Firestore status → what UI expects
+function normalizeStatus(raw: any): StatusKey {
+  const s = String(raw ?? "").trim();
+
+  // common cases from your checkout/admin
+  const upper = s.toUpperCase();
+
+  // map your checkout value
+  if (upper === "PENDING") return "PENDING";
+  if (upper === "PREPARING") return "PREPARING";
+  if (upper === "READY") return "READY";
+  if (upper === "COMPLETED") return "COMPLETED";
+
+  // fallback
+  return "PENDING";
+}
 
 export default function OrderTracking() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
+  const id = String(orderId || "");
   const router = useRouter();
+  const mapRef = useRef<MapView>(null);
+  const insets = useSafeAreaInsets();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const mapRef = useRef<MapView>(null);
 
-  // 👉 MOCK: seed an order and simulate movement + status changes
+  // ✅ REAL-TIME Firestore listener: orders/{orderId}
   useEffect(() => {
-    // Calgary-ish coordinates
-    const storeLoc: LatLng = { lat: 51.0605, lng: -113.9730 };     // NE location
-    const customerLoc: LatLng = { lat: 51.0486, lng: -114.0708 };  // DT Calgary
+    if (!id) {
+      setOrder(null);
+      setLoading(false);
+      return;
+    }
 
-    const seed: Order = {
-      status: "RECEIVED",
-      etaMinutes: 22,
-      updatedAt: Date.now(),
-      store: { name: "Lava Pizza YYC - NE", location: storeLoc },
-      customer: { location: customerLoc },
-      driver: {
-        name: "Gurpreet",
-        phone: "+14035550123",
-        location: { ...storeLoc },
-        heading: 90,
+    setLoading(true);
+
+    const ref = doc(db, "orders", id);
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) {
+          setOrder(null);
+          setLoading(false);
+          return;
+        }
+
+        const data = snap.data() as any;
+
+        // IMPORTANT: we keep raw order but status is normalized in UI
+        const normalized: Order = {
+          status: data.status ?? "PENDING",
+          etaMinutes: data.etaMinutes,
+          restaurantAddress: data.restaurantAddress,
+          deliveryAddress: data.deliveryAddress,
+          driver: data.driver,
+          updatedAt: data.updatedAt,
+        };
+
+        setOrder(normalized);
+        setLoading(false);
       },
-    };
+      (err) => {
+        console.error("❌ Order tracking onSnapshot error:", err);
+        setOrder(null);
+        setLoading(false);
+      }
+    );
 
-    setOrder(seed);
-    setLoading(false);
+    return () => unsub();
+  }, [id]);
 
-    // Status timeline (seconds from now)
-    const timers: (number | NodeJS.Timeout)[] = [];
-    timers.push(setTimeout(() => setOrder((o) => o && { ...o, status: "PREPARING" }), 2500));
-    timers.push(setTimeout(() => setOrder((o) => o && { ...o, status: "BAKING" }), 5500));
-    timers.push(setTimeout(() => setOrder((o) => o && { ...o, status: "OUT_FOR_DELIVERY" }), 8500));
+  const statusKey: StatusKey = useMemo(() => normalizeStatus(order?.status), [order?.status]);
 
-    // Driver movement tick (every 1.5s) once OUT_FOR_DELIVERY
-    let moveInterval: NodeJS.Timeout | number | null = null;
-    const startMoveTimer = setTimeout(() => {
-      moveInterval = setInterval(() => {
-        setOrder((o) => {
-          if (!o || !o.driver?.location || !o.customer?.location) return o;
-          if (o.status === "DELIVERED") return o;
+  const activeIndex = useMemo(() => {
+    const idx = STATUS_STEPS.findIndex((s) => s.key === statusKey);
+    return idx === -1 ? 0 : idx;
+  }, [statusKey]);
 
-          // move a small step toward the customer
-          const cur = o.driver.location;
-          const dest = o.customer.location;
+  const storeLoc = toLatLng(
+    order?.restaurantAddress?.location?.latitude,
+    order?.restaurantAddress?.location?.longitude
+  );
 
-          // simple lerp
-          const step = 0.18; // 0..1 (higher moves faster)
-          const nextLat = cur.lat + (dest.lat - cur.lat) * step;
-          const nextLng = cur.lng + (dest.lng - cur.lng) * step;
+  const customerLoc = toLatLng(
+    order?.deliveryAddress?.location?.latitude,
+    order?.deliveryAddress?.location?.longitude
+  );
 
-          // compute remaining distance to decide delivery
-          const dLat = dest.lat - nextLat;
-          const dLng = dest.lng - nextLng;
-          const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+  const driverLoc = toLatLng(order?.driver?.location?.latitude, order?.driver?.location?.longitude);
 
-          const nextEta = Math.max(0, (o.etaMinutes ?? 22) - 1);
-
-          if (dist < 0.0025) {
-            // Arrived
-            return { ...o, driver: { ...o.driver!, location: dest }, etaMinutes: 0, status: "DELIVERED" };
-          }
-
-          return {
-            ...o,
-            driver: { ...o.driver!, location: { lat: nextLat, lng: nextLng } },
-            etaMinutes: nextEta,
-            updatedAt: Date.now(),
-          };
-        });
-      }, 1500);
-    }, 9000);
-    timers.push(startMoveTimer);
-
-    // Safety auto-deliver after ~20s from movement start
-    timers.push(setTimeout(() => {
-      setOrder((o) => (o ? { ...o, status: "DELIVERED", etaMinutes: 0 } : o));
-      if (moveInterval) clearInterval(moveInterval);
-    }, 9000 + 20000));
-
-    return () => {
-      timers.forEach(clearTimeout);
-      if (moveInterval) clearInterval(moveInterval);
-    };
-  }, [orderId]);
-
-  // Fit map to markers when order changes
+  // Fit map to available markers (store + customer + driver)
   useEffect(() => {
     if (!order || !mapRef.current) return;
-    const pts: LatLng[] = [
-      order.store?.location,
-      order.customer?.location,
-      order.driver?.location,
-    ].filter(Boolean) as LatLng[];
+
+    const pts: LatLng[] = [storeLoc, customerLoc, driverLoc].filter(Boolean) as LatLng[];
     if (pts.length === 0) return;
 
     const coords = pts.map((p) => ({ latitude: p.lat, longitude: p.lng }));
     mapRef.current.fitToCoordinates(coords, {
-      edgePadding: { top: 80, bottom: 220, left: 60, right: 60 },
+      edgePadding: { top: 80, bottom: 260, left: 60, right: 60 },
       animated: true,
     });
-  }, [order]);
-
-  const activeIndex = useMemo(() => {
-    const idx = STATUS_STEPS.findIndex((s) => s.key === order?.status);
-    return idx === -1 ? 0 : idx;
-  }, [order?.status]);
+  }, [order?.status, order?.etaMinutes, storeLoc?.lat, customerLoc?.lat, driverLoc?.lat]);
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FFC800" />
-        <Text style={{ marginTop: 10 }}>Loading your order…</Text>
-      </View>
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={YELLOW} />
+          <Text style={{ marginTop: 10 }}>Loading your order…</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!order) {
     return (
-      <View style={styles.center}>
-        <Text>Order not found.</Text>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={18} />
-          <Text style={{ marginLeft: 6, fontWeight: "600" }}>Go Back</Text>
-        </Pressable>
-      </View>
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View style={styles.center}>
+          <Text>Order not found.</Text>
+          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={18} />
+            <Text style={{ marginLeft: 6, fontWeight: "600" }}>Go Back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
     );
   }
 
   const driverPhone = order.driver?.phone;
+
   const callDriver = () => {
     if (!driverPhone) return Alert.alert("Driver", "No phone available.");
     Linking.openURL(`tel:${driverPhone}`);
   };
+
   const textDriver = () => {
     if (!driverPhone) return Alert.alert("Driver", "No phone available.");
     Linking.openURL(`sms:${driverPhone}`);
   };
 
   const regionFallback = {
-    latitude: order.store?.location?.lat ?? 51.0447,
-    longitude: order.store?.location?.lng ?? -114.0719,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitude: storeLoc?.lat ?? 51.0447,
+    longitude: storeLoc?.lng ?? -114.0719,
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
   };
 
+  // ✅ map padding so markers are not hidden behind the bottom panel
+  const mapBottomPadding = 240 + insets.bottom;
+
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        {/* ✅ Changed to explicit navigation to account page */}
-        <Pressable onPress={() => router.push('/(drawer)/(tabs)/account')} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color="#111" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Track Order</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {/* Map */}
-      <MapView ref={mapRef} style={styles.map} initialRegion={regionFallback}>
-        {order.store?.location && (
-          <Marker
-            coordinate={{ latitude: order.store.location.lat, longitude: order.store.location.lng }}
-            title={order.store.name ?? "Lava Pizza YYC"}
-            description="Store"
-            pinColor={Platform.OS === "ios" ? undefined : "orange"}
-          />
-        )}
-        {order.customer?.location && (
-          <Marker
-            coordinate={{ latitude: order.customer.location.lat, longitude: order.customer.location.lng }}
-            title="Your Address"
-            description="Delivery destination"
-          />
-        )}
-        {order.driver?.location && (
-          <Marker
-            coordinate={{ latitude: order.driver.location.lat, longitude: order.driver.location.lng }}
-            title={order.driver.name ?? "Driver"}
-            description="Current driver location"
-          />
-        )}
-      </MapView>
-
-      {/* Bottom Panel */}
-      <View style={styles.panel}>
-        <View style={styles.rowSpace}>
-          <View>
-            <Text style={styles.statusTitle}>
-              {STATUS_STEPS[activeIndex]?.label ?? "In progress"}
-            </Text>
-            {!!order.etaMinutes && <Text style={styles.subtle}>ETA ~ {order.etaMinutes} min</Text>}
-          </View>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable style={styles.smallBtn} onPress={callDriver}>
-              <Ionicons name="call-outline" size={16} />
-              <Text style={styles.smallBtnText}>Call</Text>
-            </Pressable>
-            <Pressable style={styles.smallBtn} onPress={textDriver}>
-              <Ionicons name="chatbubble-ellipses-outline" size={16} />
-              <Text style={styles.smallBtnText}>Text</Text>
-            </Pressable>
-          </View>
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Ionicons name="arrow-back" size={24} color="#111" />
+          </Pressable>
+          <Text style={styles.headerTitle}>Track Order</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        {/* Stepper */}
-        <View style={styles.stepper}>
-          {STATUS_STEPS.map((s, i) => {
-            const done = i <= activeIndex;
-            return (
-              <View key={s.key} style={styles.stepItem}>
-                <View style={[styles.dot, done && styles.dotActive]} />
-                <Text style={[styles.stepLabel, done && styles.stepLabelActive]}>{s.label}</Text>
-                {i < STATUS_STEPS.length - 1 && (
-                  <View style={[styles.stepLine, done && styles.stepLineActive]} />
+        {/* Map */}
+        <View style={styles.mapWrap}>
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={regionFallback}
+            mapPadding={{ top: 80, right: 20, bottom: mapBottomPadding, left: 20 }}
+          >
+            {storeLoc && (
+              <Marker
+                coordinate={{ latitude: storeLoc.lat, longitude: storeLoc.lng }}
+                title="Lava Pizza YYC"
+                description="Store"
+                pinColor={Platform.OS === "ios" ? undefined : "orange"}
+              />
+            )}
+
+            {customerLoc && (
+              <Marker
+                coordinate={{ latitude: customerLoc.lat, longitude: customerLoc.lng }}
+                title="Your Address"
+                description="Delivery destination"
+              />
+            )}
+
+            {driverLoc && (
+              <Marker
+                coordinate={{ latitude: driverLoc.lat, longitude: driverLoc.lng }}
+                title={order.driver?.name ?? "Driver"}
+                description="Current driver location"
+              />
+            )}
+          </MapView>
+
+          {/* Bottom Panel (absolute, safe area aware) */}
+          <View style={[styles.panel, { paddingBottom: 14 + insets.bottom }]}>
+            <View style={styles.rowSpace}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={styles.statusTitle}>
+                  {STATUS_STEPS[activeIndex]?.label ?? "In progress"}
+                </Text>
+
+                {typeof order.etaMinutes === "number" && (
+                  <Text style={styles.subtle}>ETA ~ {order.etaMinutes} min</Text>
                 )}
               </View>
-            );
-          })}
-        </View>
 
-        {/* Driver info */}
-        {order.driver?.name && (
-          <Text style={styles.subtle}>
-            Driver: <Text style={{ fontWeight: "600", color: "#111" }}>{order.driver.name}</Text>
-          </Text>
-        )}
+              <View style={styles.actions}>
+                <Pressable style={styles.smallBtn} onPress={callDriver}>
+                  <Ionicons name="call-outline" size={16} />
+                  <Text style={styles.smallBtnText}>Call</Text>
+                </Pressable>
+
+                <Pressable style={styles.smallBtn} onPress={textDriver}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={16} />
+                  <Text style={styles.smallBtnText}>Text</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Stepper */}
+            <View style={styles.stepper}>
+              {STATUS_STEPS.map((s, i) => {
+                const done = i <= activeIndex;
+                return (
+                  <View key={s.key} style={styles.stepItem}>
+                    <View style={[styles.dot, done && styles.dotActive]} />
+                    <Text style={[styles.stepLabel, done && styles.stepLabelActive]}>
+                      {s.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {!!order.driver?.name && (
+              <Text style={styles.subtle}>
+                Driver:{" "}
+                <Text style={{ fontWeight: "600", color: "#111" }}>{order.driver.name}</Text>
+              </Text>
+            )}
+
+            {/* Debug helper (you can remove later) */}
+            <Text style={[styles.subtle, { marginTop: 4 }]}>
+              Status from DB:{" "}
+              <Text style={{ color: "#111", fontWeight: "700" }}>{String(order.status)}</Text>
+            </Text>
+          </View>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -262,56 +320,74 @@ const YELLOW = "#FFC800";
 const LIGHT = "#FFF2B8";
 
 const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: "#fff" },
   container: { flex: 1, backgroundColor: "#fff" },
+
   header: {
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 8,
+    paddingTop: 10,
+    paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#eee",
   },
   headerTitle: { fontSize: 18, fontWeight: "800" },
 
+  mapWrap: { flex: 1 },
   map: { flex: 1 },
 
+  // ✅ absolute panel prevents “out of screen” on iPhone
   panel: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "#fff",
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingTop: 14,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     borderWidth: 1,
     borderColor: "#eee",
   },
-  rowSpace: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  statusTitle: { fontSize: 18, fontWeight: "800" },
+
+  rowSpace: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  statusTitle: { fontSize: 22, fontWeight: "900" },
   subtle: { color: "#666", marginTop: 2 },
 
-  stepper: {
-    marginTop: 12,
-    marginBottom: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  stepItem: { flex: 1, alignItems: "center", flexDirection: "row" },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#ddd" },
-  dotActive: { backgroundColor: YELLOW },
-  stepLabel: { marginLeft: 8, color: "#888", fontSize: 12 },
-  stepLabelActive: { color: "#111", fontWeight: "700" },
-  stepLine: { flex: 1, height: 2, backgroundColor: "#eee", marginHorizontal: 8 },
-  stepLineActive: { backgroundColor: YELLOW },
+  actions: { flexDirection: "row", gap: 10 },
 
   smallBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: LIGHT,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
-  smallBtnText: { fontWeight: "700" },
+  smallBtnText: { fontWeight: "800" },
+
+  // ✅ stepper now wraps instead of going off screen
+  stepper: {
+    marginTop: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  stepItem: { flexDirection: "row", alignItems: "center" },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#ddd", marginRight: 6 },
+  dotActive: { backgroundColor: YELLOW },
+  stepLabel: { color: "#888", fontSize: 12 },
+  stepLabelActive: { color: "#111", fontWeight: "800" },
 
   backBtn: {
     marginTop: 12,
