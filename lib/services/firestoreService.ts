@@ -403,3 +403,130 @@ export const markNotificationAsRead = async (notificationId: string) => {
     read: true,
   });
 };
+
+// ============================================================================
+// MENU ITEMS
+// ============================================================================
+
+export const menuItemsCollection = collection(db, "menu_items");
+
+export const createMenuItem = async (itemData: any) => {
+  const docRef = await addDoc(menuItemsCollection, {
+    ...itemData,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+  return docRef.id;
+};
+
+export const updateMenuItem = async (itemId: string, data: any) => {
+  const itemRef = doc(db, "menu_items", itemId);
+  await updateDoc(itemRef, {
+    ...data,
+    updatedAt: Timestamp.now(),
+  });
+};
+
+export const toggleMenuItemAvailability = async (itemId: string, available: boolean) => {
+  const itemRef = doc(db, "menu_items", itemId);
+  await updateDoc(itemRef, {
+    available,
+    updatedAt: Timestamp.now(),
+  });
+};
+
+// Real-time listener for all menu items
+export const subscribeToMenuItems = (
+  callback: (items: any[]) => void,
+  onError?: (error: Error) => void
+) => {
+  const q = query(menuItemsCollection, orderBy("name"));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      callback(items);
+    },
+    (error) => {
+      console.error("Error fetching menu items:", error);
+      onError?.(error);
+    }
+  );
+};
+
+// Real-time listener for menu items by category
+export const subscribeToMenuItemsByCategory = (
+  categoryId: string,
+  callback: (items: any[]) => void,
+  onError?: (error: Error) => void
+) => {
+  const q = query(
+    menuItemsCollection,
+    where("categoryId", "==", categoryId), // Changed to categoryId to match your index
+    orderBy("name")
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      callback(items);
+    },
+    (error) => {
+      console.error("Error fetching category items:", error);
+      onError?.(error);
+    }
+  );
+};
+
+// Real-time listener for available items only
+export const subscribeToAvailableItems = (
+  callback: (items: any[]) => void,
+  onError?: (error: Error) => void
+) => {
+  const q = query(menuItemsCollection, where("available", "==", true), orderBy("name"));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      callback(items);
+    },
+    (error) => {
+      console.error("Error fetching available items:", error);
+      onError?.(error);
+    }
+  );
+};
+
+// Get a single menu item
+export const getMenuItem = async (itemId: string) => {
+  const docRef = doc(db, "menu_items", itemId);
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() };
+  }
+  return null;
+};
+
+// Subscribe to a single menu item
+export const subscribeToMenuItem = (itemId: string, callback: (item: any | null) => void) => {
+  const docRef = doc(db, "menu_items", itemId);
+  return onSnapshot(docRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback({ id: snapshot.id, ...snapshot.data() });
+    } else {
+      callback(null);
+    }
+  });
+};
