@@ -1,89 +1,119 @@
 // app/menu/item/[itemId].tsx
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
   Alert,
   ActivityIndicator,
-  TextInput 
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { menuItems } from '@/data/menuData';
-import { useCart } from '../../context/CartContext';
+  TextInput,
+  Image,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { menuItems } from "@/data/menuData";
+import { useCart } from "../../context/CartContext";
+import { useMenuItem } from "@/lib/hooks/useMenu";
+import { getMenuItemImage } from "@/constants/menuItemImages";
 
 // Color constants to match your design
 const COLORS = {
-  primary: '#FFC107',      // Yellow/Orange
-  primaryDark: '#FFB300',  // Darker yellow
-  text: '#333',
-  textLight: '#666',
-  background: '#fff',
-  backgroundLight: '#f5f5f5',
-  border: '#f0f0f0',
+  primary: "#FFC107", // Yellow/Orange
+  primaryDark: "#FFB300", // Darker yellow
+  text: "#333",
+  textLight: "#666",
+  background: "#fff",
+  backgroundLight: "#f5f5f5",
+  border: "#f0f0f0",
 };
 
 // Regular toppings
 const TOPPINGS = [
-  { id: 'pepperoni', name: 'Pepperoni', price: 1.50 },
-  { id: 'mushrooms', name: 'Mushrooms', price: 1.00 },
-  { id: 'onions', name: 'Onions', price: 0.75 },
-  { id: 'peppers', name: 'Peppers', price: 1.00 },
-  { id: 'olives', name: 'Olives', price: 1.00 },
-  { id: 'bacon', name: 'Bacon', price: 2.00 },
-  { id: 'sausage', name: 'Sausage', price: 1.75 },
-  { id: 'ham', name: 'Ham', price: 1.75 },
-  { id: 'chicken', name: 'Chicken', price: 2.50 },
-  { id: 'pineapple', name: 'Pineapple', price: 1.00 },
-  { id: 'jalapeños', name: 'Jalapeños', price: 0.75 },
-  { id: 'extra-cheese', name: 'Extra Cheese', price: 1.50 },
+  { id: "pepperoni", name: "Pepperoni", price: 1.5 },
+  { id: "mushrooms", name: "Mushrooms", price: 1.0 },
+  { id: "onions", name: "Onions", price: 0.75 },
+  { id: "peppers", name: "Peppers", price: 1.0 },
+  { id: "olives", name: "Olives", price: 1.0 },
+  { id: "bacon", name: "Bacon", price: 2.0 },
+  { id: "sausage", name: "Sausage", price: 1.75 },
+  { id: "ham", name: "Ham", price: 1.75 },
+  { id: "chicken", name: "Chicken", price: 2.5 },
+  { id: "pineapple", name: "Pineapple", price: 1.0 },
+  { id: "jalapeños", name: "Jalapeños", price: 0.75 },
+  { id: "extra-cheese", name: "Extra Cheese", price: 1.5 },
 ];
 
 // Additional/Premium toppings
 const ADDITIONAL_TOPPINGS = [
-  { id: 'grilled-chicken', name: 'Grilled Chicken', price: 3.50 },
-  { id: 'bbq-chicken', name: 'BBQ Chicken', price: 3.50 },
-  { id: 'buffalo-chicken', name: 'Buffalo Chicken', price: 3.50 },
-  { id: 'steak', name: 'Steak', price: 4.00 },
-  { id: 'shrimp', name: 'Shrimp', price: 4.50 },
-  { id: 'feta-cheese', name: 'Feta Cheese', price: 2.00 },
-  { id: 'goat-cheese', name: 'Goat Cheese', price: 2.50 },
-  { id: 'parmesan', name: 'Fresh Parmesan', price: 2.00 },
-  { id: 'sun-dried-tomatoes', name: 'Sun-Dried Tomatoes', price: 2.00 },
-  { id: 'artichokes', name: 'Artichokes', price: 2.50 },
-  { id: 'roasted-garlic', name: 'Roasted Garlic', price: 1.50 },
-  { id: 'fresh-basil', name: 'Fresh Basil', price: 1.50 },
+  { id: "grilled-chicken", name: "Grilled Chicken", price: 3.5 },
+  { id: "bbq-chicken", name: "BBQ Chicken", price: 3.5 },
+  { id: "buffalo-chicken", name: "Buffalo Chicken", price: 3.5 },
+  { id: "steak", name: "Steak", price: 4.0 },
+  { id: "shrimp", name: "Shrimp", price: 4.5 },
+  { id: "feta-cheese", name: "Feta Cheese", price: 2.0 },
+  { id: "goat-cheese", name: "Goat Cheese", price: 2.5 },
+  { id: "parmesan", name: "Fresh Parmesan", price: 2.0 },
+  { id: "sun-dried-tomatoes", name: "Sun-Dried Tomatoes", price: 2.0 },
+  { id: "artichokes", name: "Artichokes", price: 2.5 },
+  { id: "roasted-garlic", name: "Roasted Garlic", price: 1.5 },
+  { id: "fresh-basil", name: "Fresh Basil", price: 1.5 },
 ];
 
 // Available dips
 const DIPS = [
-  { id: 'ranch', name: 'Ranch Dip', price: 1.49 },
-  { id: 'garlic', name: 'Garlic Dip', price: 1.49 },
-  { id: 'marinara', name: 'Marinara Sauce', price: 1.49 },
-  { id: 'bbq', name: 'BBQ Sauce', price: 1.49 },
-  { id: 'hot-sauce', name: 'Hot Sauce', price: 1.49 },
+  { id: "ranch", name: "Ranch Dip", price: 1.49 },
+  { id: "garlic", name: "Garlic Dip", price: 1.49 },
+  { id: "marinara", name: "Marinara Sauce", price: 1.49 },
+  { id: "bbq", name: "BBQ Sauce", price: 1.49 },
+  { id: "hot-sauce", name: "Hot Sauce", price: 1.49 },
 ];
 
 // Available drinks
 const DRINKS = [
-  { id: 'coke-can', name: 'Coke (Can)', price: 1.99 },
-  { id: 'pepsi-can', name: 'Pepsi (Can)', price: 1.99 },
-  { id: 'sprite-can', name: 'Sprite (Can)', price: 1.99 },
-  { id: 'coke-2l', name: 'Coke (2L)', price: 3.99 },
-  { id: 'pepsi-2l', name: 'Pepsi (2L)', price: 3.99 },
-  { id: 'sprite-2l', name: 'Sprite (2L)', price: 3.99 },
-  { id: 'water', name: 'Bottled Water', price: 1.99 },
+  { id: "coke-can", name: "Coke (Can)", price: 1.99 },
+  { id: "pepsi-can", name: "Pepsi (Can)", price: 1.99 },
+  { id: "sprite-can", name: "Sprite (Can)", price: 1.99 },
+  { id: "coke-2l", name: "Coke (2L)", price: 3.99 },
+  { id: "pepsi-2l", name: "Pepsi (2L)", price: 3.99 },
+  { id: "sprite-2l", name: "Sprite (2L)", price: 3.99 },
+  { id: "water", name: "Bottled Water", price: 1.99 },
 ];
+
+// Helper function to get emoji for category
+const getCategoryEmoji = (categoryId: string): string => {
+  const emojiMap: { [key: string]: string } = {
+    pizza: "🍕",
+    "gourmet-pizza": "🍕",
+    pasta: "🍝",
+    appetizers: "🥟",
+    "chicken-wings": "🍗",
+    poutines: "🍟",
+    shawarma: "🌯",
+    subs: "🥪",
+    burgers: "🍔",
+    salads: "🥗",
+    sides: "🍟",
+    desserts: "🍰",
+    drinks: "🥤",
+    deals: "⭐",
+  };
+  return emojiMap[categoryId] || "🍽️";
+};
 
 export default function ItemDetail() {
   const router = useRouter();
   const { itemId } = useLocalSearchParams();
   const { addItem, isLoading: cartLoading } = useCart();
-  
-  const item = menuItems.find(i => i.id === itemId);
+
+  // Get item from Firestore with real-time updates
+  const { item: firestoreItem, loading: itemLoading } = useMenuItem(itemId as string);
+
+  // Fallback to local data if Firestore is loading
+  const localItem = menuItems.find((i) => i.id === itemId);
+  const item = firestoreItem || localItem;
+
   const [selectedSize, setSelectedSize] = useState(item?.sizes?.[0] || null);
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
@@ -91,7 +121,16 @@ export default function ItemDetail() {
   const [selectedAdditionalToppings, setSelectedAdditionalToppings] = useState<string[]>([]);
   const [selectedDips, setSelectedDips] = useState<string[]>([]);
   const [selectedDrinks, setSelectedDrinks] = useState<string[]>([]);
-  const [specialInstructions, setSpecialInstructions] = useState('');
+  const [specialInstructions, setSpecialInstructions] = useState("");
+
+  if (itemLoading) {
+    return (
+      <View style={[styles.container, styles.centerContainer]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading item...</Text>
+      </View>
+    );
+  }
 
   if (!item) {
     return (
@@ -106,106 +145,112 @@ export default function ItemDetail() {
     );
   }
 
+  // ✅ SMART IMAGE SOURCE SELECTION
+  // Priority: 1) Firestore URL, 2) Local images, 3) Emoji fallback
+  const getImageSource = () => {
+    // First try Firestore image URL
+    if (item.image && typeof item.image === "string") {
+      return { uri: item.image };
+    }
+    // Then try local images
+    try {
+      const localImage = getMenuItemImage(item.id);
+      if (localImage) {
+        return localImage;
+      }
+    } catch (error) {
+      console.log("No local image found for", item.id);
+    }
+    // No image found
+    return null;
+  };
+
+  const imageSource = getImageSource();
+
   // Check if item can have toppings (pizzas mainly)
-  const canHaveToppings = item.category.includes('pizza') || item.category === 'pizza-subs';
+  const canHaveToppings = item.category?.includes("pizza") || item.category === "pizza-subs";
 
   // Calculate prices
-  const currentPrice = selectedSize ? selectedSize.price : item.price;
+  const currentPrice = selectedSize ? selectedSize.price : item.basePrice || item.price || 0;
   const toppingsPrice = selectedToppings.reduce((sum, toppingId) => {
-    const topping = TOPPINGS.find(t => t.id === toppingId);
+    const topping = TOPPINGS.find((t) => t.id === toppingId);
     return sum + (topping?.price || 0);
   }, 0);
   const additionalToppingsPrice = selectedAdditionalToppings.reduce((sum, toppingId) => {
-    const topping = ADDITIONAL_TOPPINGS.find(t => t.id === toppingId);
+    const topping = ADDITIONAL_TOPPINGS.find((t) => t.id === toppingId);
     return sum + (topping?.price || 0);
   }, 0);
   const dipsPrice = selectedDips.reduce((sum, dipId) => {
-    const dip = DIPS.find(d => d.id === dipId);
+    const dip = DIPS.find((d) => d.id === dipId);
     return sum + (dip?.price || 0);
   }, 0);
   const drinksPrice = selectedDrinks.reduce((sum, drinkId) => {
-    const drink = DRINKS.find(d => d.id === drinkId);
+    const drink = DRINKS.find((d) => d.id === drinkId);
     return sum + (drink?.price || 0);
   }, 0);
-  
-  const totalPrice = (currentPrice + toppingsPrice + additionalToppingsPrice + dipsPrice + drinksPrice) * quantity;
+
+  const totalPrice =
+    (currentPrice + toppingsPrice + additionalToppingsPrice + dipsPrice + drinksPrice) * quantity;
 
   const toggleTopping = (toppingId: string) => {
-    setSelectedToppings(prev => 
-      prev.includes(toppingId) 
-        ? prev.filter(id => id !== toppingId)
-        : [...prev, toppingId]
+    setSelectedToppings((prev) =>
+      prev.includes(toppingId) ? prev.filter((id) => id !== toppingId) : [...prev, toppingId]
     );
   };
 
   const toggleAdditionalTopping = (toppingId: string) => {
-    setSelectedAdditionalToppings(prev => 
-      prev.includes(toppingId) 
-        ? prev.filter(id => id !== toppingId)
-        : [...prev, toppingId]
+    setSelectedAdditionalToppings((prev) =>
+      prev.includes(toppingId) ? prev.filter((id) => id !== toppingId) : [...prev, toppingId]
     );
   };
 
   const toggleDip = (dipId: string) => {
-    setSelectedDips(prev => 
-      prev.includes(dipId) 
-        ? prev.filter(id => id !== dipId)
-        : [...prev, dipId]
+    setSelectedDips((prev) =>
+      prev.includes(dipId) ? prev.filter((id) => id !== dipId) : [...prev, dipId]
     );
   };
 
   const toggleDrink = (drinkId: string) => {
-    setSelectedDrinks(prev => 
-      prev.includes(drinkId) 
-        ? prev.filter(id => id !== drinkId)
-        : [...prev, drinkId]
+    setSelectedDrinks((prev) =>
+      prev.includes(drinkId) ? prev.filter((id) => id !== drinkId) : [...prev, drinkId]
     );
   };
 
   const handleAddToCart = async () => {
     setIsAdding(true);
-    
+
     try {
-      const uniqueId = `${item.id}-${selectedSize?.size || 'default'}-${Date.now()}`;
-      
+      const uniqueId = `${item.id}-${selectedSize?.size || "default"}-${Date.now()}`;
+
       // Build customizations string
-      let customizations = '';
+      let customizations = "";
       if (selectedToppings.length > 0) {
-        customizations += `Toppings: ${selectedToppings.map(id => 
-          TOPPINGS.find(t => t.id === id)?.name
-        ).join(', ')}`;
+        customizations += `Toppings: ${selectedToppings
+          .map((id) => TOPPINGS.find((t) => t.id === id)?.name)
+          .join(", ")}`;
       }
       if (selectedAdditionalToppings.length > 0) {
-        if (customizations) customizations += ' | ';
-        customizations += `Premium: ${selectedAdditionalToppings.map(id => 
-          ADDITIONAL_TOPPINGS.find(t => t.id === id)?.name
-        ).join(', ')}`;
+        if (customizations) customizations += " | ";
+        customizations += `Premium: ${selectedAdditionalToppings
+          .map((id) => ADDITIONAL_TOPPINGS.find((t) => t.id === id)?.name)
+          .join(", ")}`;
       }
       if (selectedDips.length > 0) {
-        if (customizations) customizations += ' | ';
-        customizations += `Dips: ${selectedDips.map(id => 
-          DIPS.find(d => d.id === id)?.name
-        ).join(', ')}`;
+        if (customizations) customizations += " | ";
+        customizations += `Dips: ${selectedDips
+          .map((id) => DIPS.find((d) => d.id === id)?.name)
+          .join(", ")}`;
       }
       if (selectedDrinks.length > 0) {
-        if (customizations) customizations += ' | ';
-        customizations += `Drinks: ${selectedDrinks.map(id => 
-          DRINKS.find(d => d.id === id)?.name
-        ).join(', ')}`;
+        if (customizations) customizations += " | ";
+        customizations += `Drinks: ${selectedDrinks
+          .map((id) => DRINKS.find((d) => d.id === id)?.name)
+          .join(", ")}`;
       }
       if (specialInstructions) {
-        if (customizations) customizations += ' | ';
+        if (customizations) customizations += " | ";
         customizations += `Note: ${specialInstructions}`;
       }
-
-      console.log('🛍️ Adding to cart:', {
-        id: uniqueId,
-        name: item.name,
-        size: selectedSize?.size,
-        quantity,
-        price: totalPrice / quantity,
-        customizations
-      });
 
       addItem({
         id: uniqueId,
@@ -216,31 +261,31 @@ export default function ItemDetail() {
         customizations,
       });
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       Alert.alert(
-        '✅ Added to Cart',
-        `${item.name}${selectedSize ? ` (${selectedSize.size})` : ''} x${quantity}`,
+        "✅ Added to Cart",
+        `${item.name}${selectedSize ? ` (${selectedSize.size})` : ""} x${quantity}`,
         [
-          { 
-            text: 'Continue Shopping', 
+          {
+            text: "Continue Shopping",
             onPress: () => {
               setIsAdding(false);
               router.back();
-            }
+            },
           },
-          { 
-            text: 'View Cart', 
+          {
+            text: "View Cart",
             onPress: () => {
               setIsAdding(false);
-              router.push('/(drawer)/(tabs)/cart');
-            }
+              router.push("/(drawer)/(tabs)/cart");
+            },
           },
         ]
       );
     } catch (error) {
-      console.error('❌ Error adding to cart:', error);
-      Alert.alert('Error', 'Failed to add item to cart. Please try again.');
+      console.error("❌ Error adding to cart:", error);
+      Alert.alert("Error", "Failed to add item to cart. Please try again.");
     } finally {
       setIsAdding(false);
     }
@@ -257,11 +302,16 @@ export default function ItemDetail() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Item Image Placeholder - SMALLER */}
+        {/* ✅ SMART IMAGE DISPLAY */}
         <View style={styles.imageContainer}>
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderEmoji}>🍕</Text>
-          </View>
+          {imageSource ? (
+            <Image source={imageSource} style={styles.itemImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Text style={styles.placeholderEmoji}>{getCategoryEmoji(item.category || "")}</Text>
+            </View>
+          )}
+
           {item.popular && (
             <View style={styles.popularBadge}>
               <Ionicons name="star" size={16} color="#FFF" />
@@ -273,9 +323,7 @@ export default function ItemDetail() {
         {/* Item Info */}
         <View style={styles.infoSection}>
           <Text style={styles.itemName}>{item.name}</Text>
-          {item.description && (
-            <Text style={styles.itemDescription}>{item.description}</Text>
-          )}
+          {item.description && <Text style={styles.itemDescription}>{item.description}</Text>}
 
           {/* Size Selection (if applicable) */}
           {item.sizes && item.sizes.length > 0 && (
@@ -287,20 +335,24 @@ export default function ItemDetail() {
                     key={size.size}
                     style={[
                       styles.sizeButton,
-                      selectedSize?.size === size.size && styles.sizeButtonActive
+                      selectedSize?.size === size.size && styles.sizeButtonActive,
                     ]}
                     onPress={() => setSelectedSize(size)}
                   >
-                    <Text style={[
-                      styles.sizeText,
-                      selectedSize?.size === size.size && styles.sizeTextActive
-                    ]}>
+                    <Text
+                      style={[
+                        styles.sizeText,
+                        selectedSize?.size === size.size && styles.sizeTextActive,
+                      ]}
+                    >
                       {size.size}
                     </Text>
-                    <Text style={[
-                      styles.sizePrice,
-                      selectedSize?.size === size.size && styles.sizePriceActive
-                    ]}>
+                    <Text
+                      style={[
+                        styles.sizePrice,
+                        selectedSize?.size === size.size && styles.sizePriceActive,
+                      ]}
+                    >
                       ${size.price.toFixed(2)}
                     </Text>
                   </TouchableOpacity>
@@ -319,22 +371,24 @@ export default function ItemDetail() {
                     key={topping.id}
                     style={[
                       styles.addonButton,
-                      selectedToppings.includes(topping.id) && styles.addonButtonActive
+                      selectedToppings.includes(topping.id) && styles.addonButtonActive,
                     ]}
                     onPress={() => toggleTopping(topping.id)}
                   >
                     {selectedToppings.includes(topping.id) && (
-                      <Ionicons 
-                        name="checkmark-circle" 
-                        size={18} 
-                        color={COLORS.primary} 
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color={COLORS.primary}
                         style={styles.addonCheck}
                       />
                     )}
-                    <Text style={[
-                      styles.addonName,
-                      selectedToppings.includes(topping.id) && styles.addonNameActive
-                    ]}>
+                    <Text
+                      style={[
+                        styles.addonName,
+                        selectedToppings.includes(topping.id) && styles.addonNameActive,
+                      ]}
+                    >
                       {topping.name}
                     </Text>
                     <Text style={styles.addonPrice}>+${topping.price.toFixed(2)}</Text>
@@ -361,22 +415,24 @@ export default function ItemDetail() {
                     style={[
                       styles.addonButton,
                       styles.premiumAddonButton,
-                      selectedAdditionalToppings.includes(topping.id) && styles.addonButtonActive
+                      selectedAdditionalToppings.includes(topping.id) && styles.addonButtonActive,
                     ]}
                     onPress={() => toggleAdditionalTopping(topping.id)}
                   >
                     {selectedAdditionalToppings.includes(topping.id) && (
-                      <Ionicons 
-                        name="checkmark-circle" 
-                        size={18} 
-                        color={COLORS.primary} 
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color={COLORS.primary}
                         style={styles.addonCheck}
                       />
                     )}
-                    <Text style={[
-                      styles.addonName,
-                      selectedAdditionalToppings.includes(topping.id) && styles.addonNameActive
-                    ]}>
+                    <Text
+                      style={[
+                        styles.addonName,
+                        selectedAdditionalToppings.includes(topping.id) && styles.addonNameActive,
+                      ]}
+                    >
                       {topping.name}
                     </Text>
                     <Text style={styles.addonPrice}>+${topping.price.toFixed(2)}</Text>
@@ -395,22 +451,24 @@ export default function ItemDetail() {
                   key={dip.id}
                   style={[
                     styles.addonButton,
-                    selectedDips.includes(dip.id) && styles.addonButtonActive
+                    selectedDips.includes(dip.id) && styles.addonButtonActive,
                   ]}
                   onPress={() => toggleDip(dip.id)}
                 >
                   {selectedDips.includes(dip.id) && (
-                    <Ionicons 
-                      name="checkmark-circle" 
-                      size={18} 
-                      color={COLORS.primary} 
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color={COLORS.primary}
                       style={styles.addonCheck}
                     />
                   )}
-                  <Text style={[
-                    styles.addonName,
-                    selectedDips.includes(dip.id) && styles.addonNameActive
-                  ]}>
+                  <Text
+                    style={[
+                      styles.addonName,
+                      selectedDips.includes(dip.id) && styles.addonNameActive,
+                    ]}
+                  >
                     {dip.name}
                   </Text>
                   <Text style={styles.addonPrice}>+${dip.price.toFixed(2)}</Text>
@@ -428,22 +486,24 @@ export default function ItemDetail() {
                   key={drink.id}
                   style={[
                     styles.addonButton,
-                    selectedDrinks.includes(drink.id) && styles.addonButtonActive
+                    selectedDrinks.includes(drink.id) && styles.addonButtonActive,
                   ]}
                   onPress={() => toggleDrink(drink.id)}
                 >
                   {selectedDrinks.includes(drink.id) && (
-                    <Ionicons 
-                      name="checkmark-circle" 
-                      size={18} 
-                      color={COLORS.primary} 
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color={COLORS.primary}
                       style={styles.addonCheck}
                     />
                   )}
-                  <Text style={[
-                    styles.addonName,
-                    selectedDrinks.includes(drink.id) && styles.addonNameActive
-                  ]}>
+                  <Text
+                    style={[
+                      styles.addonName,
+                      selectedDrinks.includes(drink.id) && styles.addonNameActive,
+                    ]}
+                  >
                     {drink.name}
                   </Text>
                   <Text style={styles.addonPrice}>+${drink.price.toFixed(2)}</Text>
@@ -490,11 +550,15 @@ export default function ItemDetail() {
           <View style={styles.totalSection}>
             <View>
               <Text style={styles.totalLabel}>Total</Text>
-              {(toppingsPrice > 0 || additionalToppingsPrice > 0 || dipsPrice > 0 || drinksPrice > 0) && (
+              {(toppingsPrice > 0 ||
+                additionalToppingsPrice > 0 ||
+                dipsPrice > 0 ||
+                drinksPrice > 0) && (
                 <Text style={styles.priceBreakdown}>
                   Base: ${currentPrice.toFixed(2)}
                   {toppingsPrice > 0 && ` + Toppings: $${toppingsPrice.toFixed(2)}`}
-                  {additionalToppingsPrice > 0 && ` + Premium: $${additionalToppingsPrice.toFixed(2)}`}
+                  {additionalToppingsPrice > 0 &&
+                    ` + Premium: $${additionalToppingsPrice.toFixed(2)}`}
                   {dipsPrice > 0 && ` + Dips: $${dipsPrice.toFixed(2)}`}
                   {drinksPrice > 0 && ` + Drinks: $${drinksPrice.toFixed(2)}`}
                 </Text>
@@ -504,10 +568,10 @@ export default function ItemDetail() {
           </View>
 
           {/* Add to Cart Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.addToCartButton,
-              (isAdding || cartLoading) && styles.addToCartButtonDisabled
+              (isAdding || cartLoading) && styles.addToCartButtonDisabled,
             ]}
             onPress={handleAddToCart}
             disabled={isAdding || cartLoading}
@@ -534,10 +598,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  centerContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: COLORS.textLight,
+  },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   errorText: {
@@ -548,12 +621,12 @@ const styles = StyleSheet.create({
   backLink: {
     fontSize: 16,
     color: COLORS.primary,
-    textDecorationLine: 'underline',
+    textDecorationLine: "underline",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
@@ -563,36 +636,39 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     flex: 1,
   },
   imageContainer: {
-    width: '100%',
-    height: 180,
-    backgroundColor: '#FFF',
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: 250,
+    backgroundColor: "#FFF",
+    position: "relative",
+    overflow: "hidden",
+  },
+  itemImage: {
+    width: "100%",
+    height: "100%",
   },
   placeholderImage: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFF0F0",
   },
   placeholderEmoji: {
-    fontSize: 80,
+    fontSize: 100,
   },
   popularBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 12,
     right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.primary,
     borderRadius: 20,
     paddingHorizontal: 12,
@@ -600,8 +676,8 @@ const styles = StyleSheet.create({
   },
   popularBadgeText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FFF',
+    fontWeight: "600",
+    color: "#FFF",
     marginLeft: 4,
   },
   infoSection: {
@@ -609,7 +685,7 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.text,
     marginBottom: 6,
   },
@@ -623,44 +699,44 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.text,
   },
   premiumBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF6B35',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF6B35",
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   premiumBadgeText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#FFF',
+    fontWeight: "600",
+    color: "#FFF",
     marginLeft: 3,
   },
   sizeOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
   sizeButton: {
     flex: 1,
-    minWidth: '30%',
+    minWidth: "30%",
     backgroundColor: COLORS.backgroundLight,
     borderRadius: 10,
     padding: 14,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   sizeButtonActive: {
     backgroundColor: COLORS.background,
@@ -668,7 +744,7 @@ const styles = StyleSheet.create({
   },
   sizeText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.text,
     marginBottom: 4,
   },
@@ -677,15 +753,15 @@ const styles = StyleSheet.create({
   },
   sizePrice: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     color: COLORS.textLight,
   },
   sizePriceActive: {
     color: COLORS.text,
   },
   addonsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   addonButton: {
@@ -694,16 +770,16 @@ const styles = StyleSheet.create({
     padding: 10,
     paddingHorizontal: 12,
     borderWidth: 1.5,
-    borderColor: 'transparent',
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: '47%',
+    borderColor: "transparent",
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: "47%",
   },
   premiumAddonButton: {
-    backgroundColor: '#FFF5E6',
+    backgroundColor: "#FFF5E6",
   },
   addonButtonActive: {
-    backgroundColor: '#FFFBF0',
+    backgroundColor: "#FFFBF0",
     borderColor: COLORS.primary,
   },
   addonCheck: {
@@ -711,18 +787,18 @@ const styles = StyleSheet.create({
   },
   addonName: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: "500",
     color: COLORS.text,
     flex: 1,
   },
   addonNameActive: {
     color: COLORS.text,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   addonPrice: {
     fontSize: 12,
     color: COLORS.textLight,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   instructionsInput: {
     backgroundColor: COLORS.backgroundLight,
@@ -731,12 +807,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text,
     minHeight: 80,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 20,
   },
   quantityButton: {
@@ -744,20 +820,20 @@ const styles = StyleSheet.create({
     height: 50,
     backgroundColor: COLORS.primary,
     borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   quantityText: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.text,
     minWidth: 40,
-    textAlign: 'center',
+    textAlign: "center",
   },
   totalSection: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
     marginBottom: 16,
     paddingTop: 12,
     borderTopWidth: 1,
@@ -765,7 +841,7 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.text,
   },
   priceBreakdown: {
@@ -775,13 +851,13 @@ const styles = StyleSheet.create({
   },
   totalPrice: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.primary,
   },
   addToCartButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: COLORS.primary,
     borderRadius: 14,
     paddingVertical: 16,
@@ -795,7 +871,7 @@ const styles = StyleSheet.create({
   },
   addToCartText: {
     fontSize: 17,
-    fontWeight: '600',
-    color: '#FFF',
+    fontWeight: "600",
+    color: "#FFF",
   },
 });

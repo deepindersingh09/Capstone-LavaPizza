@@ -7,13 +7,15 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { menuCategories } from "@/data/menuData";
 import { useMenuByCategory } from "@/lib/hooks/useMenu";
+import { getMenuItemImage } from "@/constants/menuItemImages"; // ✅ NEW
 
-// Helper function to get appropriate emoji for each item category
+// Helper function to get appropriate emoji for each item category (kept for text fallback)
 const getCategoryEmoji = (categoryId: string): string => {
   const emojiMap: { [key: string]: string } = {
     pizza: "🍕",
@@ -63,10 +65,7 @@ export default function CategoryItems() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.categoryEmoji}>{categoryEmoji}</Text>
-          <Text style={styles.title}>{category.name}</Text>
-        </View>
+
         <View style={{ width: 40 }} />
       </View>
 
@@ -88,59 +87,80 @@ export default function CategoryItems() {
       ) : (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.itemsContainer}>
-            {items.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.itemCard}
-                onPress={() => router.push(`/menu/item/${item.id}`)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.itemInfo}>
-                  <View style={styles.itemHeader}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    {item.popular && (
-                      <View style={styles.popularBadge}>
-                        <Text style={styles.popularText}>⭐ Popular</Text>
-                      </View>
-                    )}
-                  </View>
+            {items.map((item) => {
+              const hasSizes = Array.isArray(item.sizes) && item.sizes.length > 0;
 
-                  {item.description && (
-                    <Text style={styles.itemDescription} numberOfLines={2}>
-                      {item.description}
-                    </Text>
-                  )}
+              // ✅ Fix: your Firestore likely uses `price`, not `basePrice`
+              const basePriceNumber =
+                typeof item.price === "number"
+                  ? item.price
+                  : typeof item.basePrice === "number"
+                    ? item.basePrice
+                    : 0;
 
-                  <View style={styles.priceRow}>
-                    {item.sizes && item.sizes.length > 0 ? (
-                      <View style={styles.priceContainer}>
-                        <Text style={styles.priceLabel}>From </Text>
-                        <Text style={styles.itemPrice}>
-                          $
-                          {typeof item.sizes[0]?.price === "number"
-                            ? item.sizes[0].price.toFixed(2)
-                            : "0.00"}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.itemPrice}>
-                        ${typeof item.basePrice === "number" ? item.basePrice.toFixed(2) : "0.00"}
+              const fromPriceNumber =
+                hasSizes && typeof item.sizes[0]?.price === "number" ? item.sizes[0].price : 0;
+
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.itemCard}
+                  onPress={() => router.push(`/menu/item/${item.id}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.itemInfo}>
+                    <View style={styles.itemHeader}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      {item.popular && (
+                        <View style={styles.popularBadge}>
+                          <Text style={styles.popularText}>⭐ Popular</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {item.description ? (
+                      <Text style={styles.itemDescription} numberOfLines={2}>
+                        {item.description}
                       </Text>
-                    )}
+                    ) : null}
 
-                    <View style={styles.addButton}>
-                      <Ionicons name="add-circle" size={28} color="#E53935" />
+                    <View style={styles.priceRow}>
+                      {hasSizes ? (
+                        <View style={styles.priceContainer}>
+                          <Text style={styles.priceLabel}>From </Text>
+                          <Text style={styles.itemPrice}>${fromPriceNumber.toFixed(2)}</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.itemPrice}>${basePriceNumber.toFixed(2)}</Text>
+                      )}
+
+                      <View style={styles.addButton}>
+                        <Ionicons name="add-circle" size={28} color="#E53935" />
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                <View style={styles.itemImageContainer}>
-                  <View style={styles.placeholderImage}>
-                    <Text style={styles.placeholderEmoji}>{categoryEmoji}</Text>
+                  <View style={styles.itemImageContainer}>
+                    <Image
+                      source={getMenuItemImage(item.id)}
+                      style={styles.itemImage}
+                      resizeMode="cover"
+                      onError={() => {
+                        // If an image is missing, it'll show placeholder anyway via getMenuItemImage
+                      }}
+                    />
+
+                    {/* Optional: if you want emoji overlay when placeholder is used, keep this.
+                        Otherwise remove it. */}
+                    {!item?.id ? (
+                      <View style={styles.placeholderOverlay}>
+                        <Text style={styles.placeholderEmoji}>{categoryEmoji}</Text>
+                      </View>
+                    ) : null}
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {items.length === 0 && !loading && (
@@ -151,7 +171,6 @@ export default function CategoryItems() {
             </View>
           )}
 
-          {/* Bottom spacing for scroll */}
           <View style={{ height: 20 }} />
         </ScrollView>
       )}
@@ -236,8 +255,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  categoryEmoji: {
-    fontSize: 24,
+  categoryImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
   },
   title: {
     fontSize: 20,
@@ -328,15 +349,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  placeholderImage: {
+  itemImage: {
     width: "100%",
     height: "100%",
+  },
+  placeholderOverlay: {
+    position: "absolute",
+    inset: 0,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFF0F0",
+    backgroundColor: "rgba(255,240,240,0.6)",
   },
   placeholderEmoji: {
-    fontSize: 50,
+    fontSize: 42,
   },
   emptyState: {
     padding: 60,
