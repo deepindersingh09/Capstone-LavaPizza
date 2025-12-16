@@ -12,15 +12,28 @@
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
+    "notification": {
+      "icon": "./assets/images/notification-icon.png",
+      "color": "#D97706",
+      "androidMode": "default",
+      "androidCollapsedTitle": "{{unread_count}} new notifications"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.techtitans.lavapizzayyc",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
+      "package": "com.techtitans.lavapizzayyc",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": ["RECEIVE_BOOT_COMPLETED", "VIBRATE", "WAKE_LOCK", "POST_NOTIFICATIONS"],
+      "useNextNotificationsApi": true
     },
     "web": {
       "bundler": "metro",
@@ -29,15 +42,26 @@
     },
     "plugins": [
       "expo-router",
-      "expo-web-browser"
-      
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#D97706",
+          "defaultChannel": "default",
+          "sounds": []
+        }
+      ]
     ],
-"experiments": {
-  "typedRoutes": true
-},
-
+    "experiments": {
+      "typedRoutes": true
+    },
     "extra": {
-      "googleWebClientId": "898725473422-h5o07rea27deqfs5lhv05fitdk8qr38c.apps.googleusercontent.com"
+      "googleWebClientId": "898725473422-h5o07rea27deqfs5lhv05fitdk8qr38c.apps.googleusercontent.com",
+      "router": {},
+      "eas": {
+        "projectId": "341593a1-c81f-45d7-a60d-32a8c8fa1e3e"
+      }
     }
   }
 }

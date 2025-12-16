@@ -1,126 +1,154 @@
-import React, { useCallback, useEffect, useMemo, useState, useLayoutEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useLayoutEffect } from "react";
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "expo-router";
+
+import NotificationCard, { NotificationItem } from "../../../../components/NotificationCard";
+
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import {
-  View,
-  Text,
-  FlatList,
-  RefreshControl,
-  TouchableOpacity,
-  Alert,
-  StyleSheet,
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from 'expo-router';
-
-import NotificationCard, { NotificationItem } from '../../../../components/NotificationCard';
-
-const STORAGE_KEY = '@lava_pizza_notifications_v1';
-
-const seed: NotificationItem[] = [
-  {
-    id: 'n1',
-    title: 'Order Confirmed',
-    body: 'Your Lava Pizza order #LP-10293 is confirmed. We’re firing up the oven! 🔥',
-    createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-    type: 'order',
-    read: false,
-  },
-  {
-    id: 'n2',
-    title: 'Delivery On The Way',
-    body: 'Rider Jaspreet has picked up your order. ETA ~18 minutes.',
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    type: 'order',
-    read: true,
-  },
-  {
-    id: 'n3',
-    title: '2-For-1 Tuesdays',
-    body: 'Every Tuesday: buy any large, get another free. Use code TUE2X at checkout.',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    type: 'promo',
-    read: false,
-  },
-];
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
 
 export default function NotificationScreen() {
   const navigation = useNavigation();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [uid, setUid] = useState<string | null>(null);
 
-  // Load / seed
+  // Track logged-in user
   useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          setItems(JSON.parse(raw));
-        } else {
-          setItems(seed);
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
-        }
-      } catch (e) {
-        console.warn('Failed to load notifications', e);
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setUid(user?.uid ?? null);
+      if (!user) setItems([]);
+    });
+    return unsub;
+  }, []);
+
+  // Realtime Firestore listener
+  useEffect(() => {
+    if (!uid) return;
+
+    const ref = collection(db, "users", uid, "notifications");
+    const q = query(ref, orderBy("createdAt", "desc"));
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const next: NotificationItem[] = snap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            id: d.id,
+            title: data.title ?? "",
+            body: data.body ?? "",
+            createdAt: data.createdAt ?? new Date().toISOString(),
+            type: data.type ?? "promo",
+            read: !!data.read,
+          };
+        });
+        setItems(next);
+      },
+      (err) => {
+        console.warn("Failed to load notifications from Firestore", err);
       }
-    })();
-  }, []);
+    );
 
-  // Persist helper
-  const persist = useCallback(async (next: NotificationItem[]) => {
-    try {
-      setItems(next);
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch (e) {
-      console.warn('Failed to save notifications', e);
-    }
-  }, []);
-
-  // Pull to refresh (mock)
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setRefreshing(false);
-  }, []);
+    return unsub;
+  }, [uid]);
 
   const unreadCount = useMemo(() => items.filter((i) => !i.read).length, [items]);
 
-  const markAllRead = useCallback(() => {
-    if (!items.length) return;
-    const next = items.map((i) => ({ ...i, read: true }));
-    persist(next);
-  }, [items, persist]);
+  const onRefresh = useCallback(async () => {
+    // With realtime onSnapshot, refresh is mostly just UI feedback
+    setRefreshing(true);
+    await new Promise((r) => setTimeout(r, 500));
+    setRefreshing(false);
+  }, []);
+
+  const markAllRead = useCallback(async () => {
+    if (!uid || !items.length) return;
+
+    try {
+      const batch = writeBatch(db);
+      items.forEach((i) => {
+        if (!i.read) {
+          const ref = doc(db, "users", uid, "notifications", i.id);
+          batch.update(ref, { read: true });
+        }
+      });
+      await batch.commit();
+    } catch (e) {
+      console.warn("Failed to mark all read", e);
+    }
+  }, [uid, items]);
 
   const clearAll = useCallback(() => {
-    if (!items.length) return;
-    Alert.alert('Clear all?', 'This will remove all notifications.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: () => persist([]) },
+    if (!uid || !items.length) return;
+
+    Alert.alert("Clear all?", "This will remove all notifications.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const batch = writeBatch(db);
+            items.forEach((i) => {
+              const ref = doc(db, "users", uid, "notifications", i.id);
+              batch.delete(ref);
+            });
+            await batch.commit();
+          } catch (e) {
+            console.warn("Failed to clear all", e);
+          }
+        },
+      },
     ]);
-  }, [items.length, persist]);
+  }, [uid, items]);
 
   const toggleRead = useCallback(
-    (id: string) => {
-      const next = items.map((i) => (i.id === id ? { ...i, read: !i.read } : i));
-      persist(next);
+    async (id: string) => {
+      if (!uid) return;
+      const found = items.find((x) => x.id === id);
+      if (!found) return;
+
+      try {
+        const ref = doc(db, "users", uid, "notifications", id);
+        await updateDoc(ref, { read: !found.read });
+      } catch (e) {
+        console.warn("Failed to toggle read", e);
+      }
     },
-    [items, persist]
+    [uid, items]
   );
 
   const removeItem = useCallback(
-    (id: string) => {
-      const next = items.filter((i) => i.id !== id);
-      persist(next);
+    async (id: string) => {
+      if (!uid) return;
+      try {
+        const ref = doc(db, "users", uid, "notifications", id);
+        await deleteDoc(ref);
+      } catch (e) {
+        console.warn("Failed to remove notification", e);
+      }
     },
-    [items, persist]
+    [uid]
   );
 
-  // Configure the Stack header (title, back arrow is automatic)
   useLayoutEffect(() => {
     navigation.setOptions?.({
-      title: unreadCount ? `Notifications (${unreadCount})` : 'Notifications',
+      title: unreadCount ? `Notifications (${unreadCount})` : "Notifications",
       headerBackTitleVisible: false,
       headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
           <TouchableOpacity
             onPress={markAllRead}
             disabled={!items.length}
@@ -140,11 +168,10 @@ export default function NotificationScreen() {
     });
   }, [navigation, unreadCount, items.length, markAllRead, clearAll]);
 
-  // Optional subheader under the title for status text
   const Subheader = (
     <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8 }}>
-      <Text style={{ color: '#666' }}>
-        {unreadCount ? `${unreadCount} unread` : 'All caught up 🎉'}
+      <Text style={{ color: "#666" }}>
+        {uid ? (unreadCount ? `${unreadCount} unread` : "All caught up 🎉") : "Please sign in"}
       </Text>
     </View>
   );
@@ -165,16 +192,14 @@ export default function NotificationScreen() {
         </TouchableOpacity>
       )}
       ListEmptyComponent={
-        <View style={{ alignItems: 'center', marginTop: 48 }}>
+        <View style={{ alignItems: "center", marginTop: 48 }}>
           <Ionicons name="notifications-off" size={40} />
-          <Text style={{ marginTop: 8, color: '#777' }}>No notifications yet</Text>
+          <Text style={{ marginTop: 8, color: "#777" }}>
+            {uid ? "No notifications yet" : "Sign in to see notifications"}
+          </Text>
         </View>
       }
       contentContainerStyle={{ paddingBottom: 32 }}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  // (no changes needed right now; kept for future)
-});

@@ -152,7 +152,7 @@ export default function Profile() {
               if (option === "General") router.push("/general");
               else if (option === "Notifications") router.push("/notification_setting");
               else if (option === "Payment") router.push("/payment");
-              else if (option === "Order History") router.push("/orders");
+              else if (option === "Order History") router.push("/order");
               else if (option === "Track Order")
                 handleTrackOrder(); // ✅ REAL
               else if (option === "Update Delivery Info") router.push("/delivery_address");
